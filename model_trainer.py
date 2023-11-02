@@ -31,8 +31,9 @@ label_encoder = LabelEncoder()
 num_classes = 80
 batch_size = args.batch_size
 
-learning_rates = [2.5e-06, 0.000625, 0.00125, 0.0025, 0.00025, 2.5e-05]
-learning_rate_boundaries = [125, 250, 500, 240000, 360000]
+b_mod = int(args.epochs/batch_size)
+learning_rates = [0.005, 0.01, .05, .01, .005, .00025]
+learning_rate_boundaries = [5*b_mod, 10*b_mod,25*b_mod, 50*b_mod, 100*b_mod]
 learning_rate_fn = tf.optimizers.schedules.PiecewiseConstantDecay(
     boundaries=learning_rate_boundaries, values=learning_rates
 )
