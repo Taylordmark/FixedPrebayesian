@@ -7,11 +7,22 @@ from utils.coco_dataset_manager import *
 
 from utils.custom_retinanet import *
 
+tf.keras.backend.clear_session()
+
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logical_gpus = tf.config.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs," , len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+        print(e)
 
 parser = argparse.ArgumentParser(description="Model Trainer")
 
-parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset")
-parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset")
+parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset", default="annotations/instances_train2017.json")
+parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset", default="train")
 parser.add_argument("--download", "-d", type=str, help="Whether to download the dataset images or not", default="True")
 parser.add_argument("--batch_size", "-b", type=int, default=4)
 parser.add_argument("--epochs", "-e", help="number of epochs", default=50, type=int)

@@ -94,7 +94,7 @@ class CocoDSManager:
             images = coco.loadImgs(img_to_load)
             for im in images:
                 img_data = requests.get(im['coco_url']).content
-                with open(self.save_pth + "//" + im['file_name'], 'wb') as handler:
+                with open(self.save_pth + r"/" + im['file_name'], 'wb') as handler:
                     handler.write(img_data)
 
 
