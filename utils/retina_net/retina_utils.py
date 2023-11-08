@@ -178,8 +178,7 @@ def visualize_detections_and_gt(
 
     for box, _cls in zip(boxes_gt, classes_gt):
         text = "{}".format(_cls)
-        x1, y1, x2, y2 = box
-        w, h = x2 - x1, y2 - y1
+        x1, y1, w, h = box
         patch = plt.Rectangle(
             [x1, y1], w, h, fill=False, edgecolor=color_gt, linewidth=linewidth_gt
         )

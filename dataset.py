@@ -19,13 +19,13 @@ download = True
 
 cls_list = ['person', 'cat', 'dog', 'potted plant']
 
-coco_ds = CocoDSManager(json_path, save_path, max_samples=num_imgs, download=download, cls_list=cls_list)
+coco_ds = CocoDSManager(json_path, save_path, max_samples=num_imgs, download=download, cls_list=cls_list, yxyw_percent=False)
 
 train_dataset = coco_ds.train_ds
 val_dataset = coco_ds.val_ds
 test_ds = coco_ds.test_ds
 
-for sample in test_ds.take(3):
+for sample in train_dataset.take(3):
 
 
         scaled_bb = []
@@ -33,10 +33,7 @@ for sample in test_ds.take(3):
         #lbl_name = [coco_ds.coco.cats[x] for x in np.asarray(sample["objects"]["label"])]
 
         for box in sample["objects"]["bbox"]:
-            print(box)
-            scaled_b = xywh_to_yxyx_percent(box, np.asarray(sample["image"]).shape)
-            print(scaled_b)
-            scaled_bb.append(yxyx_percent_to_xywh(box, np.asarray(sample["image"]).shape))
+            scaled_bb.append(box)
                              
         print(scaled_bb)
 

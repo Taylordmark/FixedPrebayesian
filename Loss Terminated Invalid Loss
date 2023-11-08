@@ -1,0 +1,69 @@
+Epoch 1: loss improved from inf to 4.13337, saving model to retinanet/weights_epoch_1
+18/18 [==============================] - 37s 838ms/step - loss: 4.1334 - val_loss: 4.1229
+Epoch 2/50
+18/18 [==============================] - ETA: 0s - loss: 4.0880 
+Epoch 2: loss improved from 4.13337 to 4.08802, saving model to retinanet/weights_epoch_2
+18/18 [==============================] - 13s 617ms/step - loss: 4.0880 - val_loss: 4.1907
+Epoch 3/50
+18/18 [==============================] - ETA: 0s - loss: 4.0451 
+Epoch 3: loss improved from 4.08802 to 4.04507, saving model to retinanet/weights_epoch_3
+18/18 [==============================] - 11s 495ms/step - loss: 4.0451 - val_loss: 4.2384
+Epoch 4/50
+18/18 [==============================] - ETA: 0s - loss: 3.9824  
+Epoch 4: loss improved from 4.04507 to 3.98244, saving model to retinanet/weights_epoch_4
+18/18 [==============================] - 11s 458ms/step - loss: 3.9824 - val_loss: 4.1184
+Epoch 5/50
+18/18 [==============================] - ETA: 0s - loss: 3.9546 
+Epoch 5: loss improved from 3.98244 to 3.95462, saving model to retinanet/weights_epoch_5
+18/18 [==============================] - 11s 451ms/step - loss: 3.9546 - val_loss: 4.1490
+Epoch 6/50
+18/18 [==============================] - ETA: 0s - loss: 3.8383  
+Epoch 6: loss improved from 3.95462 to 3.83833, saving model to retinanet/weights_epoch_6
+18/18 [==============================] - 11s 405ms/step - loss: 3.8383 - val_loss: 4.1602
+Epoch 7/50
+18/18 [==============================] - ETA: 0s - loss: 3.7470  
+Epoch 7: loss improved from 3.83833 to 3.74705, saving model to retinanet/weights_epoch_7
+18/18 [==============================] - 11s 424ms/step - loss: 3.7470 - val_loss: 4.1073
+Epoch 8/50
+18/18 [==============================] - ETA: 0s - loss: 3.7998  
+Epoch 8: loss did not improve from 3.74705
+18/18 [==============================] - 10s 383ms/step - loss: 3.7998 - val_loss: 4.6912
+Epoch 9/50
+18/18 [==============================] - ETA: 0s - loss: 4.0955 
+Epoch 9: loss did not improve from 3.74705
+18/18 [==============================] - 9s 408ms/step - loss: 4.0955 - val_loss: 4.1454
+Epoch 10/50
+18/18 [==============================] - ETA: 0s - loss: 4.0902 
+Epoch 10: loss did not improve from 3.74705
+18/18 [==============================] - 10s 534ms/step - loss: 4.0902 - val_loss: 4.2144
+Epoch 11/50
+18/18 [==============================] - ETA: 0s - loss: 4.0408 
+Epoch 11: loss did not improve from 3.74705
+18/18 [==============================] - 10s 412ms/step - loss: 4.0408 - val_loss: 5.0161
+Epoch 12/50
+18/18 [==============================] - ETA: 0s - loss: 3.9368 
+Epoch 12: loss did not improve from 3.74705
+18/18 [==============================] - 10s 442ms/step - loss: 3.9368 - val_loss: 4.1889
+Epoch 13/50
+18/18 [==============================] - ETA: 0s - loss: 3.8536  
+Epoch 13: loss did not improve from 3.74705
+18/18 [==============================] - 10s 337ms/step - loss: 3.8536 - val_loss: 4.2678
+Epoch 14/50
+18/18 [==============================] - ETA: 0s - loss: 3.9470 
+Epoch 14: loss did not improve from 3.74705
+18/18 [==============================] - 10s 409ms/step - loss: 3.9470 - val_loss: 4.2369
+Epoch 15/50
+18/18 [==============================] - ETA: 0s - loss: 4.4509 
+Epoch 15: loss did not improve from 3.74705
+18/18 [==============================] - 9s 414ms/step - loss: 4.4509 - val_loss: 21217.9492
+Epoch 16/50
+ 3/18 [====>.........................] - ETA: 11s - loss: 263426819758227456.0000Batch 3: Invalid loss, terminating training
+ 4/18 [=====>........................] - ETA: 9s - loss: nan                     
+Epoch 16: loss did not improve from 3.74705
+18/18 [==============================] - 6s 173ms/step - loss: nan - val_loss: nan
+0.09780994
+1258.0
+Traceback (most recent call last):
+  File "model_trainer.py", line 190, in <module>
+    scaled_bb.append(yxyx_percent_to_yxhw(box, np.asarray(sample["image"]).shape))
+NameError: name 'yxyx_percent_to_yxhw' is not defined

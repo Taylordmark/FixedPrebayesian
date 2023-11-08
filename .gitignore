@@ -5,3 +5,8 @@ retinanet copy-backup
 share
 commands
 pyvenv.cfg
+train
+logs
+yolo
+
+

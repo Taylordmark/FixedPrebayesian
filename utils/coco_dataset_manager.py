@@ -23,7 +23,7 @@ class CocoDSManager:
     cls_list: which classes to download images with, leave blank to get all
     """
     @tf.autograph.experimental.do_not_convert
-    def __init__(self, annotation_pth:str, save_pth:str, max_samples:int=60, test_split_denominator:int = 5, cls_list:list=None, download=True, resize_size=(640, 640)) -> None:
+    def __init__(self, annotation_pth:str, save_pth:str, max_samples:int=60, test_split_denominator:int = 5, cls_list:list=None, download=True, resize_size=(640, 640), yxyw_percent=True) -> None:
         self.ann_pth = annotation_pth
         self.save_pth = save_pth
         self.slice = max_samples
@@ -31,6 +31,8 @@ class CocoDSManager:
         self.split = test_split_denominator
 
         self.coco = COCO(self.ann_pth)
+
+        self.yxyw_percent = yxyw_percent
 
         # instantiate COCO specifying the annotations json path
 
@@ -81,7 +83,10 @@ class CocoDSManager:
                 j += 1
             i += 1
 
-            bboxes.append(xywh_to_yxyx_percent(resize_xywh(label["bbox"], size, resize_size),resize_size))
+            resized = resize_xywh(label["bbox"], size, resize_size)
+            if self.yxyw_percent:
+                resized = xywh_to_yxyx_percent(resized, resize_size)
+            bboxes.append(resized)
             #bboxes.append(resize_xywh(label["bbox"], size, resize_size))
 
             cls_ids.append(key_list.index(label["category_id"]))
@@ -106,10 +111,10 @@ class CocoDSManager:
         cls_tens = tf.RaggedTensor.from_row_splits(cls_ids, split_list)
 
         full_ds = tf.data.Dataset.from_tensor_slices(
-            {"image":images,
-             "objects": {
-             "bbox": box_tens,
-             "label": cls_tens}
+            {"images":images,
+             "bounding_boxes": {
+             "boxes": box_tens,
+             "classes": cls_tens}
             })
         
         val_test_ds = full_ds.enumerate() \

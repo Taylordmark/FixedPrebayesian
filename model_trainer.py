@@ -42,14 +42,18 @@ label_encoder = LabelEncoder()
 num_classes = 80
 batch_size = args.batch_size
 
+#TODO UNCOMMENT THESE LINES TO USE DEFAULT LEARNING RATES
+
 # learning_rates = [2.5e-06, 0.000625, 0.00125, 0.0025, 0.00025, 2.5e-05]
 #learning_rate_boundaries = [125, 250, 500, 240000, 360000]
 
 
-b_mod = int(args.epochs/batch_size)
+b_mod = int(args.num_imgs/batch_size)
 
+
+#TODO COMMENT THE NEXT 2 LINES IF USING DEFAULT RATES
 learning_rate_boundaries = [5*b_mod, 10*b_mod, 25*b_mod, 50*b_mod, 100*b_mod]
-learning_rates = [.005, .01, 0.05, 0.01, 0.005, 0.00025]
+learning_rates = [.0005, .001, 0.005, 0.001, 0.0005, 0.00025]
 
 learning_rate_fn = tf.optimizers.schedules.PiecewiseConstantDecay(
     boundaries=learning_rate_boundaries, values=learning_rates
@@ -74,6 +78,8 @@ if "train" in args.mode:
     optimizer = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate_fn, momentum=0.9)
     model.compile(loss=loss_fn, optimizer=optimizer)
 
+
+    model.load_weights(r"retinanet\weights_epoch_"+str(131)).expect_partial()
 
     callbacks_list = [
         tf.keras.callbacks.ModelCheckpoint(
@@ -142,7 +148,7 @@ if "test" in args.mode:
 
 
 
-        image = tf.cast(sample["image"], dtype=tf.float32)
+        image = tf.cast(sample["images"], dtype=tf.float32)
 
     
         input_image, ratio = prepare_image(image)
@@ -178,10 +184,10 @@ if "test" in args.mode:
         #print(sample["objects"]["bbox"])
 
         scaled_bb = []
-        lbl_name = [coco_ds.coco.cats[key_list[x]] for x in np.asarray(sample["objects"]["label"])]
+        lbl_name = [coco_ds.coco.cats[key_list[x]] for x in np.asarray(sample["bounding_boxes"]["classes"])]
 
-        for box in sample["objects"]["bbox"]:
-            scaled_bb.append(yxyx_percent_to_yxhw(box, np.asarray(sample["image"]).shape))
+        for box in sample["bounding_boxes"]["boxes"]:
+            scaled_bb.append(xywh_to_yxyx_percent(box, np.asarray(sample["images"]).shape))
                              
 
         #visualize_dataset(image, scaled_bb[:3], lbl_name[:3])

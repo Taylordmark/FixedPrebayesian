@@ -195,7 +195,7 @@ def resize_and_pad_image(
 
 def minimal_preprocess(sample):
 
-    image = sample["image"]
+    image = sample["images"]
     bbox = sample["objects"]["bbox"]
 
     class_id = tf.cast(sample["objects"]["label"], dtype=tf.int32)
@@ -228,10 +228,10 @@ def preprocess_data(sample):
     class_id: An tensor representing the class id of the objects, having
         shape `(num_objects,)`.
     """
-    image = sample["image"]
-    bbox = swap_xy(sample["objects"]["bbox"])
+    image = sample["images"]
+    bbox = swap_xy(sample["bounding_boxes"]["boxes"])
 
-    class_id = tf.cast(sample["objects"]["label"], dtype=tf.int32)
+    class_id = tf.cast(sample["bounding_boxes"]["classes"], dtype=tf.int32)
 
 
     image, bbox = random_flip_horizontal(image, bbox)
