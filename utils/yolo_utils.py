@@ -27,7 +27,15 @@ class EvaluateCOCOMetricsCallback(keras.callbacks.Callback):
         for batch in self.data:
             images, y_true = batch[0], batch[1]
             y_pred = self.model.predict(images, verbose=0)
-            self.metrics.update_state(y_true, y_pred)
+
+            print(y_pred)
+
+            y_format = {
+                "boxes": y_pred["boxes"],
+                "classes": y_pred["cls_idx"],
+                "confidence": y_pred["cls_prob"],
+            }
+            self.metrics.update_state(y_true, y_format)
 
         metrics = self.metrics.result(force=True)
         logs.update(metrics)
@@ -35,6 +43,6 @@ class EvaluateCOCOMetricsCallback(keras.callbacks.Callback):
         current_map = metrics["MaP"]
         if current_map > self.best_map:
             self.best_map = current_map
-            self.model.save(self.save_path)  # Save the model when mAP improves
+            self.model.save_weights(os.path.join(model_dir, f"weights_epoch_{epoch}"))  # Save the model when mAP improves
 
         return logs

@@ -39,10 +39,24 @@ class CocoDSManager:
         coco = self.coco
         key_list = list(coco.cats.keys())
 
+
         # Specify a list of category names of interest
         if self.cls_list is not None:
             catIds = coco.getCatIds(catNms=self.cls_list)
-            imgIds = coco.getImgIds(catIds=catIds)
+
+            
+
+            imgIds = []
+
+            for cat in catIds:  
+                tempIds = coco.getImgIds(catIds=[cat])
+
+                for ids in tempIds:
+                    imgIds.append(ids)
+
+            imgIds = list(set(imgIds))
+
+            key_list = list(catIds)
         else:
             imgIds = coco.getImgIds()
         # Get the corresponding image ids and images using loadImgs
@@ -70,8 +84,13 @@ class CocoDSManager:
             if (j >= len(imgIds)):
                 break
 
+
+            if (label["category_id"] not in key_list):
+                continue
             
             img = coco.loadImgs([label["image_id"]])[0]
+
+
 
             size = (img['width'], img['height'])
             
@@ -97,6 +116,8 @@ class CocoDSManager:
         #TODO handle images already being there
         if download:
             images = coco.loadImgs(img_to_load)
+
+            print(f"LOADING {len(img_to_load)} IMAGES")
             for im in images:
                 img_data = requests.get(im['coco_url']).content
                 with open(self.save_pth + r"/" + im['file_name'], 'wb') as handler:
@@ -134,6 +155,8 @@ class CocoDSManager:
         self.test_ds = val_test_ds.enumerate() \
                     .filter(lambda x,y: x % 2 != 0) \
                     .map(lambda x,y: y)
+
+        self.key_list = key_list
         
 
     def load_images(self, path:str, ids, resize_size=(640, 640), extension=".jpg"):

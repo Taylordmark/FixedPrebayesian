@@ -160,7 +160,7 @@ def visualize_detections_and_gt(
     plt.imshow(image)
     ax = plt.gca()
     for box, _cls, score in zip(boxes, classes, scores):
-        text = "{}: {:.2f}".format(_cls, score)
+        text = "{}: {:.4f}".format(_cls, score)
         x1, y1, w, h = box
         #w, h = x2 - x1, y2 - y1
         patch = plt.Rectangle(
