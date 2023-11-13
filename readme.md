@@ -19,11 +19,14 @@ Additionally, you can limit the images to only those which include a list of giv
 Make sure you are using python 3.8.5. I would recommend setting up a virtual environment. Either way, run pip install -r requirements.txt.
 
 # Training
-The model_trainer file is set up to use coco automatically. You can specify number of epochs with -e and numbers of images samples with -s. It defaults to put the trained model in the folder retinanet ("which may need to be created if it is missing")
+There are two different model trainers, one for retina net and one for yolo, of which yolo is labeled accordingly. The dataset is handled automatically, but you can specify how many images you want with -n and you can limit the classes the detector using -l.
+
+# Yolo class list
+With the yolo trainer, you can provide the path to a text file of classes to include. These currently must be classes in coco. If you do this, the number of classes will be reduced to the number in the list. Values should be new line delimited
 
 # Output Format
-The "retina net model" returns a dictionary of two tensors on call "boxes" and "cls_prob", which is a probability vector which should be suitable for a bayesian backend.
+Both models output a tensor of "boxes", "cls_prob" (probability of each class), and "cls_idx" (index of highest probability class for each prediction)
 
 Example command: 
 
-python model_trainer.py -j [ANNOTATION PATH] -s train [SAVE PATH]     
+python model_trainer-yolo.py -e 50 -s [train-pth] -j [path-to-coco-json] -n 1000 -c .45 -l yolo-cls-list.txt

@@ -59,7 +59,7 @@ learning_rate_fn = tf.optimizers.schedules.PiecewiseConstantDecay(
     boundaries=learning_rate_boundaries, values=learning_rates
 )
 
-coco_ds = CocoDSManager(args.json_path, args.save_path, max_samples=args.num_imgs, download=args.download == "True", cls_list=['person', 'cat', 'dog'])
+coco_ds = CocoDSManager(args.json_path, args.save_path, max_samples=args.num_imgs, download=args.download == "True")
 
 
 train_dataset = coco_ds.train_ds

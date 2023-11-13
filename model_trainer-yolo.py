@@ -46,21 +46,28 @@ parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", d
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="traintest", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
 parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
-parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="yolo-cls-list.txt", type=str)
+parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="", type=str)
 
 
 args = parser.parse_args()
 
 model_dir = args.checkpoint_path
 
-num_classes = 80
 batch_size = args.batch_size
 
-with open(args.cls_path) as f:
-    cls_list = f.readlines()
-    cls_list = [cls.replace("\n", "") for cls in cls_list]
+
+#Load the class lists from text, if not specified, it gets all 80 classes
+if (args.cls_path == ""):
+    cls_list = None
+else:
+    with open(args.cls_path) as f:
+        cls_list = f.readlines()
+        cls_list = [cls.replace("\n", "") for cls in cls_list]
 
 print(cls_list)
+
+#The detector will only be the length of the class list
+num_classes = 80 if cls_list is None else len(cls_list)
 coco_ds = CocoDSManager(args.json_path, args.save_path, max_samples=args.num_imgs, download=args.download == "True", yxyw_percent=False, cls_list=cls_list)
 
 
@@ -115,8 +122,9 @@ backbone = keras_cv.models.YOLOV8Backbone.from_preset(
 
 nms = PreBayesianNMS("xywh", True, confidence_threshold=args.min_confidence)
 
+
 model = keras_cv.models.YOLOV8Detector(
-    num_classes=3,
+    num_classes= num_classes,
     bounding_box_format="xywh",
     backbone=backbone,
     fpn_depth=2,
@@ -126,7 +134,7 @@ model = keras_cv.models.YOLOV8Detector(
 LEARNING_RATE = 0.00025
 GLOBAL_CLIPNORM = 10
 
-optimizer = tf.keras.optimizers.SGD(
+optimizer = tf.keras.optimizers.Adam(
     learning_rate=LEARNING_RATE,
     global_clipnorm=GLOBAL_CLIPNORM,
 )
@@ -151,19 +159,12 @@ if "train" in args.mode:
     )
 
 
-#if "test" in args.mode:
-for i in range(6):
+if "test" in args.mode:
     latest_checkpoint = tf.train.latest_checkpoint(args.checkpoint_path)
     
 
 
-    #print(latest_checkpoint)
-    #model.load_weights(latest_checkpoint).expect_partial()
-
-    model.load_weights(r"yolo\weights_epoch_"+str(20+i)).expect_partial()
-
-    # print(f"WEIGHTS {124}")
-
+    model.load_weights(latest_checkpoint).expect_partial()
 
     for sample in coco_ds.train_ds.take(5):
 
