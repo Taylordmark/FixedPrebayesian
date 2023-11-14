@@ -1,3 +1,16 @@
 person
 dog
 cat
+bus
+car
+truck
+fire hydrant
+motorcycle
+airplane
+train
+boat
+traffic light
+street sign
+stop sign
+parking meter
+bench

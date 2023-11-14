@@ -36,17 +36,17 @@ if gpus:
 
 parser = argparse.ArgumentParser(description="Model Trainer")
 
-parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset", default="annotations/instances_train2017.json")
-parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset", default="train")
+parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset", default="/remote_home/Thesis/annotations/instances_train2017.json")
+parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset", default="/remote_home/Thesis/train")
 parser.add_argument("--download", "-d", type=str, help="Whether to download the dataset images or not", default="False")
-parser.add_argument("--batch_size", "-b", type=int, default=4)
-parser.add_argument("--epochs", "-e", help="number of epochs", default=50, type=int)
-parser.add_argument("--num_imgs", "-n", help="number of images", default=50, type=int)
+parser.add_argument("--batch_size", "-b", type=int, default=16)
+parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
+parser.add_argument("--num_imgs", "-n", help="number of images", default=500, type=int)
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
-parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="traintest", type=str)
+parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="test", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
 parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
-parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="", type=str)
+parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="yolo-cls-list.txt", type=str)
 
 
 args = parser.parse_args()
@@ -74,6 +74,8 @@ coco_ds = CocoDSManager(args.json_path, args.save_path, max_samples=args.num_img
 train_ds = coco_ds.train_ds
 val_ds = coco_ds.val_ds
 
+print("TRAIN DATA LENGTH")
+print(len(list(train_ds)))
 
 augmenter = keras.Sequential(
     layers=[
