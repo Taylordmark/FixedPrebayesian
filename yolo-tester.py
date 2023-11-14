@@ -19,56 +19,40 @@ from utils.yolo_utils import *
 from utils.custom_retinanet import prepare_image
 
 from utils.nonmaxsuppression import PreBayesianNMS
-
-
-
-tf.keras.backend.clear_session()
-
-gpus = tf.config.list_physical_devices('GPU')
-if gpus:
-    try:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs," , len(logical_gpus), "Logical GPUs")
-    except RuntimeError as e:
-        print(e)
+import os
+import cv2
 
 def dict_to_tuple(inputs):
     return inputs["images"], inputs["bounding_boxes"]
 
-parser = argparse.ArgumentParser(description="Model Trainer")
+output_folder = "image_test_results"  # Change this to the desired output folder
 
-parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset", default="/remote_home/Thesis/annotations/instances_train2017.json")
-parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset", default="/remote_home/Thesis/train")
-parser.add_argument("--download", "-d", type=str, help="Whether to download the dataset images or not", default="False")
-parser.add_argument("--batch_size", "-b", type=int, default=16)
-parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
-parser.add_argument("--num_imgs", "-n", help="number of images", default=500, type=int)
-parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
-parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
-parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
-parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="/remote_home/Thesis/Prebayesian/yolo-cls-list.txt", type=str)
+# Create the output folder if it doesn't exist
+os.makedirs(output_folder, exist_ok=True)
 
+# Hardcoded values
+json_path = "/remote_home/Thesis/annotations/instances_train2017.json"
+save_path = "/remote_home/Thesis/train"
+download = "False"
+batch_size = 16
+epochs = 500
+num_imgs = 10
+checkpoint_path = "yolo"
+max_iou = 0.2
+min_confidence = 0.018
+cls_path = "/remote_home/Thesis/Prebayesian/yolo-cls-list.txt"
 
-args = parser.parse_args()
-
-model_dir = args.checkpoint_path
-
-batch_size = args.batch_size
-
-
-#Load the class lists from text, if not specified, it gets all 80 classes
-if (args.cls_path == ""):
+# Load the class lists from text, if not specified, it gets all 80 classes
+if cls_path == "":
     cls_list = None
 else:
-    with open(args.cls_path) as f:
+    with open(cls_path) as f:
         cls_list = f.readlines()
         cls_list = [cls.replace("\n", "") for cls in cls_list]
 
-#The detector will only be the length of the class list
+# The detector will only be the length of the class list
 num_classes = 80 if cls_list is None else len(cls_list)
-coco_ds = CocoDSManager(args.json_path, args.save_path, max_samples=args.num_imgs, download=args.download == "True", yxyw_percent=False, cls_list=cls_list)
+coco_ds = CocoDSManager(json_path, save_path, max_samples=num_imgs, download=download == "True", yxyw_percent=False, cls_list=cls_list)
 
 train_ds = coco_ds.train_ds
 val_ds = coco_ds.val_ds
@@ -112,15 +96,10 @@ backbone = keras_cv.models.YOLOV8Backbone.from_preset(
     "yolo_v8_s_backbone_coco"  # We will use yolov8 small backbone with coco weights
 )
 
-#backbone = keras_cv.models.YOLOV8Backbone.  
-
-#nms = keras_cv.layers.MultiClassNonMaxSuppression("xywh", True, args.min_confidence)
-
-nms = PreBayesianNMS("xywh", True, confidence_threshold=args.min_confidence)
-
+nms = PreBayesianNMS("xywh", True, confidence_threshold=min_confidence)
 
 model = keras_cv.models.YOLOV8Detector(
-    num_classes= num_classes,
+    num_classes=num_classes,
     bounding_box_format="xywh",
     backbone=backbone,
     fpn_depth=2,
@@ -130,14 +109,15 @@ model = keras_cv.models.YOLOV8Detector(
 LEARNING_RATE = 0.00025
 GLOBAL_CLIPNORM = 10
 
-optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE,global_clipnorm=GLOBAL_CLIPNORM)
+optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE, global_clipnorm=GLOBAL_CLIPNORM)
 model.compile(optimizer=optimizer, classification_loss="binary_crossentropy", box_loss="ciou", jit_compile=False)
 
-latest_checkpoint = tf.train.latest_checkpoint(args.checkpoint_path)
+latest_checkpoint = tf.train.latest_checkpoint("/remote_home/Thesis/Prebayesian/best_weights")
 model.load_weights(latest_checkpoint).expect_partial()
-model.save("latest_model.h5")
 
-for sample in coco_ds.train_ds.take(5):
+# model.save("latest_model.keras")
+
+for sample in coco_ds.train_ds.take(1):
 
     try:
         image = tf.cast(sample["images"], dtype=tf.float32)
@@ -187,4 +167,4 @@ for sample in coco_ds.train_ds.take(5):
     except IndexError:
         print("NO VALID DETECTIONS")
         continue
-    # show_frame_no_deep(np.asarray(image), np.asarray(detections["boxes"][0]), 2000)
+    #show_frame_no_deep(np.asarray(image), np.asarray(detections["boxes"][0]), 2000)
