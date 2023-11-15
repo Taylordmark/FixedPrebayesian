@@ -8,5 +8,10 @@ pyvenv.cfg
 train
 logs
 yolo
-
-
+best_weights
+*.keras
+*.h5
+*.jpg
+*.csv
+*.h5
+*.keras
