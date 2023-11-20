@@ -4,6 +4,7 @@ retinanet
 retinanet copy-backup
 share
 commands
+test
 pyvenv.cfg
 train
 logs

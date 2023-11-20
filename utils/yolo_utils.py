@@ -9,6 +9,32 @@ import keras_cv
 from keras_cv import bounding_box
 from keras_cv import visualization
 
+import cv2
+import glob
+
+
+def load_images(path:str, resize_size=(640, 640), extension=".jpg"):
+
+    images = []
+
+
+    for pth in glob.glob(f"{path}/*{extension}"):
+
+        im = cv2.imread(pth)
+
+        img = cv2.cvtColor(cv2.resize(im, resize_size), cv2.COLOR_BGR2RGB)
+        #img = cv2.resize(im, resize_size)
+
+        if img.shape == resize_size:
+
+            img = cv2.merge([img, img, img])
+
+        images.append(img)
+        
+
+
+    return images
+
 
 class EvaluateCOCOMetricsCallback(keras.callbacks.Callback):
     def __init__(self, data, save_path):
