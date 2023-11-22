@@ -16,3 +16,4 @@ best_weights
 *.csv
 *.h5
 *.keras
+model_epoch_*
