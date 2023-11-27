@@ -66,6 +66,18 @@ model = keras_cv.models.YOLOV8Detector(
     prediction_decoder=nms
 )
 
+for layer in model.layers:
+    if "conv" in layer.name:
+       layer = tfp.layers.Convolution2DFlipout(
+           filters=layer.filters,
+           kernel_size=layer.kernel_size,
+           strides=layer.strides,
+           padding=layer.padding,
+           data_format=layer.data_format,
+           dilation_rate=layer.dilation_rate,
+           activation=layer.activation,
+       )
+
 images = load_images(args.image_dir)
 
 
