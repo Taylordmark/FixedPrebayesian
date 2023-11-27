@@ -18,7 +18,7 @@ from utils.yolo_utils import *
 
 from utils.custom_retinanet import prepare_image
 
-from utils.nonmaxsuppression import PreBayesianNMS
+from utils.nonmaxsuppression import *
 
 
 

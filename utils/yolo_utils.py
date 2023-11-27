@@ -12,6 +12,8 @@ from keras_cv import visualization
 import cv2
 import glob
 
+import tensorflow_probability as tfp
+
 
 def load_images(path:str, resize_size=(640, 640), extension=".jpg"):
 
@@ -72,3 +74,35 @@ class EvaluateCOCOMetricsCallback(keras.callbacks.Callback):
             self.model.save_weights(os.path.join(model_dir, f"weights_epoch_{epoch}"))  # Save the model when mAP improves
 
         return logs
+    
+# Define the prior weight distribution as Normal of mean=0 and stddev=1.
+# Note that, in this example, the we prior distribution is not trainable,
+# as we fix its parameters.
+def prior(kernel_size, bias_size, dtype=None):
+    n = kernel_size + bias_size
+    prior_model = keras.Sequential(
+        [
+            tfp.layers.DistributionLambda(
+                lambda t: tfp.distributions.MultivariateNormalDiag(
+                    loc=tf.zeros(n), scale_diag=tf.ones(n)
+                )
+            )
+        ]
+    )
+    return prior_model
+
+
+# Define variational posterior weight distribution as multivariate Gaussian.
+# Note that the learnable parameters for this distribution are the means,
+# variances, and covariances.
+def posterior(kernel_size, bias_size, dtype=None):
+    n = kernel_size + bias_size
+    posterior_model = keras.Sequential(
+        [
+            tfp.layers.VariableLayer(
+                tfp.layers.MultivariateNormalTriL.params_size(n), dtype=dtype
+            ),
+            tfp.layers.MultivariateNormalTriL(n),
+        ]
+    )
+    return posterior_model
