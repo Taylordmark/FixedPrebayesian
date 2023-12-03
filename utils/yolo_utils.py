@@ -17,25 +17,40 @@ import tensorflow_probability as tfp
 
 def load_images(path:str, resize_size=(640, 640), extension=".jpg"):
 
+
     images = []
+    if (path.endswith('.mp4')):
+
+        cap = cv2.VideoCapture(path)
+        while(cap.isOpened()):
+            ret, frame = cap.read()
+            if ret:
+                images.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            else:
+                break
+
+        cap.release()
+        return images
+
+    else:
 
 
-    for pth in glob.glob(f"{path}/*{extension}"):
+        for pth in glob.glob(f"{path}/*{extension}"):
 
-        im = cv2.imread(pth)
+            im = cv2.imread(pth)
 
-        img = cv2.cvtColor(cv2.resize(im, resize_size), cv2.COLOR_BGR2RGB)
-        #img = cv2.resize(im, resize_size)
+            img = cv2.cvtColor(cv2.resize(im, resize_size), cv2.COLOR_BGR2RGB)
+            #img = cv2.resize(im, resize_size)
 
-        if img.shape == resize_size:
+            if img.shape == resize_size:
 
-            img = cv2.merge([img, img, img])
+                img = cv2.merge([img, img, img])
 
-        images.append(img)
-        
+            images.append(img)
+            
 
 
-    return images
+        return images
 
 
 class EvaluateCOCOMetricsCallback(keras.callbacks.Callback):

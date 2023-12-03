@@ -17,6 +17,8 @@ from utils.nonmaxsuppression import *
 
 from utils.distrib_loss import *
 
+from utils.scalabeldataloader import TestDirectoryToScalable
+
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     try:
@@ -105,27 +107,31 @@ for img in ds:
         for cls in nms_cls[0]:
 
             
-            dist = tfp.distributions.Categorical(logits=cls)
+            dist = tfp.distributions.OneHotCategorical(logits=cls)
 
             soft = tf.nn.softmax(logits=cls)
 
 
-            n = 1e6
-            mean = tf.cast(
-                tf.histogram_fixed_width(
-                dist.sample(int(n)),
-                [0, num_classes],
-                nbins=num_classes),
-                dtype=tf.float32) / (n)
+            # n = 1e6
+            # mean = tf.cast(
+            #     tf.histogram_fixed_width(
+            #     dist.sample(int(n)),
+            #     [0, num_classes],
+            #     nbins=num_classes),
+            #     dtype=tf.float32) / (n)
             
+            mean = dist.mean()
+
             if (np.max(mean) < args.min_confidence):
                 continue
-            #print(mean)
-            #print(f"real {np.argmax(cls)} vs {np.argmax(mean)} sum is {np.sum(mean)} max is {np.max(mean)} softmax is {np.max(soft.numpy())}")
+
+            print(dist.log_prob(soft/2))
+            mode_idx = np.argmax(dist.mode())
+            print(f"real {np.argmax(cls)} vs {np.argmax(mean)} sum is {np.sum(mean)} max is {np.max(mean)} softmax is {np.max(soft.numpy())} mode idx is {mode_idx}")
 
 
             cls_prob.append(mean)
-            cls_id.append(np.argmax(mean))
+            cls_id.append(mode_idx)
 
         #print(cls_prob)
 

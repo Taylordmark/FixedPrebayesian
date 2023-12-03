@@ -27,6 +27,9 @@ import tensorflow_probability as tfp
 
 tf.keras.backend.clear_session()
 
+tf.compat.v1.enable_eager_execution()
+
+
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     try:
@@ -131,7 +134,7 @@ distribution_fn = tfp.distributions.OneHotCategorical
 
 nms = DistributionNMS("xywh", True, distribution_fn, confidence_threshold=args.min_confidence)
 
-distrib_loss = DistributionLoss(num_classes, distribution_fn, raw_multiplier=100)
+distrib_loss = DistributionLoss(num_classes, distribution_fn)
 
 #distrib_loss = tfp.experimental.nn.losses.neg
 

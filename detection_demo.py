@@ -19,6 +19,8 @@ from utils.nonmaxsuppression import PreBayesianNMS
 
 from pycocotools.coco import COCO
 
+from utils.scalabeldataloader import TestDirectoryToScalable
+
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     try:
@@ -68,18 +70,24 @@ model = keras_cv.models.YOLOV8Detector(
 
 images = load_images(args.image_dir)
 
+print(len(images))
+
 
 latest_checkpoint = tf.train.latest_checkpoint(args.checkpoint_path)
 
 model.load_weights(latest_checkpoint).expect_partial()
 
-ds = tf.data.Dataset.from_tensor_slices(images)
+
+logger = TestDirectoryToScalable("detections", ".mp4")
+#ds = tf.data.Dataset.from_tensor_slices(images)
 
 
 
+idx = 0
+for img in images:
+    #print('hi')
 
-for img in ds:
-    try:
+    # try:
         image = tf.cast(img, dtype=tf.float32)
 
         input_image, ratio = prepare_image(image)
@@ -104,6 +112,12 @@ for img in ds:
         for i in range(len(cls_prob)):
             correct_prob.append(cls_prob[i][cls_id[i]])
 
+
         visualize_detections(image, boxes, cls_name, correct_prob)
-    except IndexError:
-        print("NO VALID DETECTIONS")
+
+        logger.add_frame_entry(idx, boxes, cls_prob, cls_name, cls_id)
+        idx += 1
+    # except IndexError:
+    #     print("NO VALID DETECTIONS")
+
+logger.output_scalabel_detections()

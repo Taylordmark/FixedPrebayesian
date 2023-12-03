@@ -9,17 +9,22 @@ from keras_cv.losses.ciou_loss import CIoULoss
 
 class DistributionLoss(tf.losses.Loss):
         
-    def __init__(self, num_classes, distrib_fn, raw_multiplier=1, reduction="auto") -> None:
+    def __init__(self, num_classes, distrib_fn=tfp.distributions.OneHotCategorical, activation_fn=tf.nn.softmax, reduction="auto") -> None:
         super().__init__(reduction=reduction)
         self.num_classes = num_classes
         self.distrib_fn = distrib_fn
-        self.raw_multi = raw_multiplier
+        self.activation_fn = activation_fn
         #self.box_loss_fn = CIoULoss(bounding_box_format=bb_format, reduction=reduction)
 
     def call(self, y_pred, y_true):
             y_pred = tf.cast(y_pred, dtype=tf.float32)
 
             cls_distrib = self.distrib_fn(logits=y_pred)
+
+            print("TRUE")
+            tf.print(y_pred)
+
+            #tf.print(self.activation_fn(y_true))
 
             cls_loss = self.nll(y_true, cls_distrib)
 
@@ -33,6 +38,6 @@ class DistributionLoss(tf.losses.Loss):
         should be a Tensor of shape [B].
         """
 
-        return -y_pred.log_prob(y_true)*self.raw_multi
+        return -y_pred.log_prob(y_true)
 
     
