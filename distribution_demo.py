@@ -15,6 +15,8 @@ from utils.custom_retinanet import prepare_image
 
 from utils.nonmaxsuppression import *
 
+from utils.yolov8prob import ProbYolov8Detector
+
 
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
@@ -50,41 +52,10 @@ num_classes = 80 if cls_list is None else len(cls_list)
 
 
 
-distrib_fn = tfp.distributions.Binomial
-nms = DistributionNMS("xywh", True, confidence_threshold=args.min_confidence)
-
-backbone = keras_cv.models.YOLOV8Backbone.from_preset(
-    "yolo_v8_s_backbone_coco"  # We will use yolov8 small backbone with coco weights
-)
-
-model = keras_cv.models.YOLOV8Detector(
-    num_classes= num_classes,
-    bounding_box_format="xywh",
-    backbone=backbone,
-    fpn_depth=2,
-    prediction_decoder=nms
-)
-
-for layer in model.layers:
-    # if "class" in layer.name:
-    #     print(layer.name)
-    if "conv" in layer.name:
-       layer = tfp.layers.Convolution2DFlipout(
-           filters=layer.filters,
-           kernel_size=layer.kernel_size,
-           strides=layer.strides,
-           padding=layer.padding,
-           data_format=layer.data_format,
-           dilation_rate=layer.dilation_rate,
-           activation=layer.activation,
-       )
+detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, max_iou=args.max_iou)
 
 images = load_images(args.image_dir)
 
-
-latest_checkpoint = tf.train.latest_checkpoint(args.checkpoint_path)
-
-model.load_weights(latest_checkpoint).expect_partial()
 
 ds = tf.data.Dataset.from_tensor_slices(images)
 
@@ -93,8 +64,7 @@ for img in ds:
     #try:
         image = tf.cast(img, dtype=tf.float32)
 
-        input_image, ratio = prepare_image(image)
-        detections = model.predict(input_image)
+        detections = detector(image)
 
         nms_cls = detections["cls_prob"]
 
