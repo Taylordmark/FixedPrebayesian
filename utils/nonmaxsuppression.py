@@ -108,7 +108,6 @@ class DistributionNMS(keras.layers.Layer):
         self,
         bounding_box_format,
         from_logits,
-        distrib_fn,
         iou_threshold=0.5,
         confidence_threshold=0.5,
         max_detections=100,
@@ -122,7 +121,6 @@ class DistributionNMS(keras.layers.Layer):
         self.confidence_threshold = confidence_threshold
         self.max_detections = max_detections
         self.max_detections_per_class = max_detections_per_class
-        self.distrib_fn = distrib_fn
         self.built = True
 
 
@@ -153,6 +151,9 @@ class DistributionNMS(keras.layers.Layer):
         cls_predictions = class_prediction
         #from [-inf, inf] to [0, 1] with the sum adding up to 1
 
+
+        if self.from_logits:
+            cls_predictions:tf.Tensor = ops.softmax(cls_predictions)
 
 
         def nms(x):
@@ -186,6 +187,8 @@ class DistributionNMS(keras.layers.Layer):
         nms_box, nms_cls = tf.map_fn(nms, (box_prediction, cls_predictions), dtype=(tf.float32, tf.float32), 
             fn_output_signature=(tf.float32, tf.float32))
 
+
+        print("CLS DISTRIB")
 
         output = {
             "boxes": nms_box,

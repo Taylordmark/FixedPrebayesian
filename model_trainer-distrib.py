@@ -19,10 +19,11 @@ from utils.custom_retinanet import prepare_image
 
 from utils.nonmaxsuppression import *
 
-from utils.distrib_loss import DistributionLoss
+from utils.negloglikely import nll
 
 import tensorflow_probability as tfp
 
+from utils.yolov8prob import ProbYolov8Detector
 
 
 tf.keras.backend.clear_session()
@@ -122,58 +123,26 @@ train_ds = train_ds.prefetch(tf.data.AUTOTUNE)
 val_ds = val_ds.map(dict_to_tuple, num_parallel_calls=tf.data.AUTOTUNE)
 val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
 
-backbone = keras_cv.models.YOLOV8Backbone.from_preset(
-    "yolo_v8_s_backbone_coco"  # We will use yolov8 small backbone with coco weights
-)
+detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence)
 
-#backbone = keras_cv.models.YOLOV8Backbone.  
-
-#nms = keras_cv.layers.MultiClassNonMaxSuppression("xywh", True, args.min_confidence)
-
-distribution_fn = tfp.distributions.OneHotCategorical
-
-nms = DistributionNMS("xywh", True, distribution_fn, confidence_threshold=args.min_confidence)
-
-distrib_loss = DistributionLoss(num_classes, distribution_fn)
 
 #distrib_loss = tfp.experimental.nn.losses.neg
-
-
-model = keras_cv.models.YOLOV8Detector(
-    num_classes= num_classes,
-    bounding_box_format="xywh",
-    backbone=backbone,
-    fpn_depth=2,
-    prediction_decoder=nms
-)
-
-for layer in model.layers:
-    if "conv" in layer.name:
-       layer = tfp.layers.Convolution2DFlipout(
-           filters=layer.filters,
-           kernel_size=layer.kernel_size,
-           strides=layer.strides,
-           padding=layer.padding,
-           data_format=layer.data_format,
-           dilation_rate=layer.dilation_rate,
-           activation=layer.activation,
-       )
 
 LEARNING_RATE = 0.00025
 GLOBAL_CLIPNORM = 10
 
-optimizer = tf.keras.optimizers.RMSprop(
+optimizer = tf.keras.optimizers.Adam(
     learning_rate=LEARNING_RATE,
     global_clipnorm=GLOBAL_CLIPNORM,
 )
 
-model.compile(
-    optimizer=optimizer, classification_loss=distrib_loss, box_loss="ciou", jit_compile=False
+detector.model.compile(
+    optimizer=optimizer, classification_loss=nll, box_loss="ciou", jit_compile=False, classification_loss_weight=15e4
 )
 
 if "train" in args.mode:
 
-    model.fit(
+    detector.model.fit(
     train_ds,
     validation_data=val_ds,
     epochs=args.epochs,
@@ -188,29 +157,25 @@ if "train" in args.mode:
 
 
 if "test" in args.mode:
-    latest_checkpoint = tf.train.latest_checkpoint(args.checkpoint_path)
-
-
-
-    model.load_weights(latest_checkpoint).expect_partial()
+    detector.load_weights(args.checkpoint_path)
 
     for sample in coco_ds.train_ds.take(5):
+
 
         try:
             image = tf.cast(sample["images"], dtype=tf.float32)
 
         
-            input_image, ratio = prepare_image(image)
-            detections = model.predict(input_image)
+            detections = detector(image)
 
             boxes = np.asarray(detections["boxes"][0])
 
-            cls_prob = np.asarray(detections["cls_prob"][0])
+            cls_prob = np.asarray(detections["cls_prob"])
 
             # print(np.max(cls_prob[0]))
             # print(np.sum(cls_prob[0]))
 
-            cls_id = np.asarray(detections["cls_idx"][0])
+            cls_id = np.asarray(np.argmax(cls_prob))
 
             key_list = coco_ds.key_list
             

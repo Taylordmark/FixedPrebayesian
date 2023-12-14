@@ -15,15 +15,15 @@ from utils.yolo_utils import *
 
 from utils.nonmaxsuppression import *
 
-class Yolov8Detector:
+class ProbYolov8Detector:
 
-    def __init__(self, weights_path, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", min_confidence=.1, max_iou=.5) -> None:
+    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", min_confidence=.1, max_iou=.5) -> None:
 
 
         backbone = keras_cv.models.YOLOV8Backbone.from_preset(
             backbone_name # We will use yolov8 small backbone with coco weights
         )
-        nms = PreBayesianNMS("xywh", True, confidence_threshold=min_confidence, iou_threshold=max_iou)
+        nms = DistributionNMS("xywh", True, confidence_threshold=min_confidence, iou_threshold=max_iou)
 
         self.model = keras_cv.models.YOLOV8Detector(
             num_classes= num_classes,
@@ -33,9 +33,22 @@ class Yolov8Detector:
             prediction_decoder=nms
         )
 
-        latest_checkpoint = tf.train.latest_checkpoint(weights_path)
-    
+        for layer in self.model.layers:
+            if "conv" in layer.name:
+                layer = tfp.layers.Convolution2DFlipout(
+                    filters=layer.filters,
+                    kernel_size=layer.kernel_size,
+                    strides=layer.strides,
+                    padding=layer.padding,
+                    data_format=layer.data_format,
+                    dilation_rate=layer.dilation_rate,
+                    activation=layer.activation,
+                )
+
+    def load_weights(self, checkpoint_path):
+        latest_checkpoint = tf.train.latest_checkpoint(checkpoint_path)
         self.model.load_weights(latest_checkpoint).expect_partial()
+    
 
     def prepare_image(self, image):
         image, _, ratio = resize_and_pad_image(image, jitter=None)
@@ -63,5 +76,7 @@ class Yolov8Detector:
         img = tf.cast(image, dtype=tf.float32)
         input_image, ratio = self.prepare_image(img)
         detection = self.model.predict(input_image)
+
+        print(detection)
 
         return detection

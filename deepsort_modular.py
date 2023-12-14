@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 from application_util import preprocessing
-from application_util import updated_visualization as visualization
+from application_util.updated_visualization import *
 from deep_sort import nn_matching
 from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
@@ -48,8 +48,12 @@ def run(img_dir, detection_function, output_file, min_confidence,
         detections = detection_function(imgs[frame_idx])
 
         # Run non-maxima suppression.
-        boxes = np.array([d.tlwh for d in detections])
-        scores = np.array([d.confidence for d in detections])
+
+        boxes = np.array([d["boxes"] for d in detections])
+        scores = np.array([np.max(d["prob"]) for d in detections])
+
+        print(boxes)
+        print(scores)
         indices = preprocessing.non_max_suppression(
             boxes, nms_max_overlap, scores)
         detections = [detections[i] for i in indices]
@@ -75,9 +79,9 @@ def run(img_dir, detection_function, output_file, min_confidence,
 
     # Run tracker.
     if display:
-        visualizer = visualization.Visualization(imgs, update_ms=5)
+        visualizer = Visualization(imgs, update_ms=5)
     else:
-        visualizer = visualization.NoVisualization(len(imgs))
+        visualizer = NoVisualization(len(imgs))
     visualizer.run(frame_callback)
 
     # Store results.
@@ -131,7 +135,7 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    detector = Yolov8Detector()
+    detector = Yolov8Detector("best_weights", 16)
 
     run(
         args.sequence_dir, detector, args.output_file,
