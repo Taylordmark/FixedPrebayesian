@@ -15,9 +15,6 @@ from utils.custom_retinanet import prepare_image
 
 from utils.nonmaxsuppression import *
 
-from utils.distrib_loss import *
-
-from utils.scalabeldataloader import TestDirectoryToScalable
 
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
