@@ -17,6 +17,8 @@ from utils.nonmaxsuppression import *
 
 from utils.distrib_loss import *
 
+from utils.scalabeldataloader import TestDirectoryToScalable
+
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     try:
@@ -52,7 +54,7 @@ num_classes = 80 if cls_list is None else len(cls_list)
 
 
 distrib_fn = tfp.distributions.Binomial
-nms = DistributionNMS("xywh", True, distrib_fn, confidence_threshold=args.min_confidence)
+nms = DistributionNMS("xywh", True, confidence_threshold=args.min_confidence)
 
 backbone = keras_cv.models.YOLOV8Backbone.from_preset(
     "yolo_v8_s_backbone_coco"  # We will use yolov8 small backbone with coco weights
@@ -67,6 +69,8 @@ model = keras_cv.models.YOLOV8Detector(
 )
 
 for layer in model.layers:
+    # if "class" in layer.name:
+    #     print(layer.name)
     if "conv" in layer.name:
        layer = tfp.layers.Convolution2DFlipout(
            filters=layer.filters,
@@ -105,25 +109,30 @@ for img in ds:
         for cls in nms_cls[0]:
 
             
-            dist = tfp.distributions.Categorical(logits=cls)
+            dist = tfp.distributions.Multinomial(1, logits=cls)
 
             soft = tf.nn.softmax(logits=cls)
 
 
-            n = 1e6
-            mean = tf.cast(
-                tf.histogram_fixed_width(
-                dist.sample(int(n)),
-                [0, num_classes],
-                nbins=num_classes),
-                dtype=tf.float32) / (n)
+            # n = 1e6
+            # mean = tf.cast(
+            #     tf.histogram_fixed_width(
+            #     dist.sample(int(n)),
+            #     [0, num_classes],
+            #     nbins=num_classes),
+            #     dtype=tf.float32) / (n)
             
+            mean = dist.mean()
+
             if (np.max(mean) < args.min_confidence):
                 continue
-            #print(mean)
-            #print(f"real {np.argmax(cls)} vs {np.argmax(mean)} sum is {np.sum(mean)} max is {np.max(mean)} softmax is {np.max(soft.numpy())}")
 
-
+            print(dist.log_prob(soft/2))
+            softmax2 = tf.nn.softmax(mean)
+            #mode_idx = np.argmax(dist.mode())
+            print(f"real {np.argmax(cls)} vs {np.argmax(mean)} sum is {np.sum(mean)} max is {np.max(mean)} softmax is {np.max(soft.numpy())} distrib soft is {np.max(softmax2)} and sum {np.sum(softmax2)}")
+            print(soft.numpy())
+            print(mean)
             cls_prob.append(mean)
             cls_id.append(np.argmax(mean))
 
