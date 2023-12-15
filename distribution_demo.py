@@ -54,6 +54,8 @@ num_classes = 80 if cls_list is None else len(cls_list)
 
 detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, max_iou=args.max_iou)
 
+
+
 images = load_images(args.image_dir)
 
 

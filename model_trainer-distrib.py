@@ -159,14 +159,15 @@ if "train" in args.mode:
 if "test" in args.mode:
     detector.load_weights(args.checkpoint_path)
 
-    for sample in coco_ds.train_ds.take(5):
+    for sample in coco_ds.train_ds.take(15):
 
-
-        try:
+        # try:
             image = tf.cast(sample["images"], dtype=tf.float32)
 
         
             detections = detector(image)
+
+            print(detections)
 
             boxes = np.asarray(detections["boxes"][0])
 
@@ -175,14 +176,16 @@ if "test" in args.mode:
             # print(np.max(cls_prob[0]))
             # print(np.sum(cls_prob[0]))
 
-            cls_id = np.asarray(np.argmax(cls_prob))
+            print(len(cls_prob[0][0]))
+
+            cls_id = np.asarray(np.argmax(cls_prob, axis=2))[0]
 
             key_list = coco_ds.key_list
             
             # print(boxes)
-            # print(cls_id)
+            print(cls_id)
 
-            print(cls_prob[0])
+            #print(cls_prob[0])
 
             correct_prob = []
             for i in range(len(cls_prob)):
@@ -203,10 +206,9 @@ if "test" in args.mode:
             print("VS")
             print(boxes)
 
-
-            visualize_detections_and_gt(image, boxes, cls_name, correct_prob,
+            visualize_detections_and_gt(image, boxes, cls_name, correct_prob[0],
                                         sample["bounding_boxes"]["boxes"], gt_name)
-        except IndexError:
-            print("NO VALID DETECTIONS")
-            continue
+        # except IndexError:
+        #     print("NO VALID DETECTIONS")
+        #     continue
         #show_frame_no_deep(np.asarray(image), np.asarray(detections["boxes"][0]), 2000)
