@@ -17,13 +17,13 @@ from utils.nonmaxsuppression import *
 
 class ProbYolov8Detector:
 
-    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", min_confidence=.1, max_iou=.5) -> None:
+    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", min_confidence=.1, max_iou=.5, nms_fn=DistributionNMS) -> None:
 
 
         backbone = keras_cv.models.YOLOV8Backbone.from_preset(
             backbone_name # We will use yolov8 small backbone with coco weights
         )
-        nms = DistributionNMS("xywh", True, confidence_threshold=min_confidence, iou_threshold=max_iou)
+        nms = nms_fn("xywh", True, confidence_threshold=min_confidence, iou_threshold=max_iou)
 
         self.model = keras_cv.models.YOLOV8Detector(
             num_classes= num_classes,
