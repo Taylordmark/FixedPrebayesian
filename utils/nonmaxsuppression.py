@@ -256,7 +256,7 @@ class PreSoftSumNMS(keras.layers.Layer):
 
             #sum_tens = tf.constant(-sum, float, cls_pred.shape)
 
-            result = tf.add(cls_pred, sum)
+            result = tf.add(cls_pred, -sum)
 
             return result
         
