@@ -121,8 +121,9 @@ for img in ds:
             i = 0
 
             ids = []
+            min = np.min(distribs)
             for prob in distribs:
-                if prob > args.min_confidence:
+                if prob > min+.01:
                     ids.append(i)
                 i +=1
             cls_id.append(ids)
@@ -132,8 +133,8 @@ for img in ds:
 
         print(boxes)
         print(cls_prob)
-        print(np.sum(cls_prob,axis=1))
-        print(cls_id)
+        # print(np.sum(cls_prob,axis=1))
+        # print(cls_id)
 
         cls_name = []
 
@@ -152,8 +153,6 @@ for img in ds:
             for ids in cls_id[i]:
                 probs.append(cls_prob[i][ids])
             correct_prob.append(probs)
-        
-        print(correct_prob)
 
 
         visualize_detections_multimodal_classes(image, boxes, cls_name, correct_prob)
