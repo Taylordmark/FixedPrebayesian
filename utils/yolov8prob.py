@@ -17,7 +17,7 @@ from utils.nonmaxsuppression import *
 
 class ProbYolov8Detector:
 
-    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", min_confidence=.1, max_iou=.5, nms_fn=DistributionNMS) -> None:
+    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", min_confidence=.1, max_iou=.5, nms_fn=PreSoftSumNMS) -> None:
 
 
         backbone = keras_cv.models.YOLOV8Backbone.from_preset(
@@ -47,6 +47,9 @@ class ProbYolov8Detector:
 
     def load_weights(self, checkpoint_path):
         latest_checkpoint = tf.train.latest_checkpoint(checkpoint_path)
+
+        print("LOADING LATEST")
+        print(latest_checkpoint)
         self.model.load_weights(latest_checkpoint).expect_partial()
     
 
@@ -77,6 +80,8 @@ class ProbYolov8Detector:
         input_image, ratio = self.prepare_image(img)
         detection = self.model.predict(input_image)
 
-        print(detection)
+        ret = {"boxes":detection['boxes'][0],
+               "cls_prob":detection['cls_prob'][0]}
+    
 
-        return detection
+        return ret

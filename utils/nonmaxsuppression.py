@@ -152,8 +152,8 @@ class DistributionNMS(keras.layers.Layer):
         #from [-inf, inf] to [0, 1] with the sum adding up to 1
 
 
-        if self.from_logits:
-            cls_predictions:tf.Tensor = ops.softmax(cls_predictions)
+        # if self.from_logits:
+        #     cls_predictions:tf.Tensor = ops.softmax(cls_predictions)
 
 
         def nms(x):
@@ -186,11 +186,19 @@ class DistributionNMS(keras.layers.Layer):
 
         nms_box, nms_cls = tf.map_fn(nms, (box_prediction, cls_predictions), dtype=(tf.float32, tf.float32), 
             fn_output_signature=(tf.float32, tf.float32))
+        
+        raw_nms = nms_cls
+
+        if self.from_logits:
+            nms_cls:tf.Tensor = ops.softmax(nms_cls)
 
         output = {
             "boxes": nms_box,
-            "cls_prob": nms_cls
+            "cls_prob": nms_cls,
+            "raw": raw_nms
         }
+
+
 
 
 
@@ -258,7 +266,8 @@ class PreSoftSumNMS(keras.layers.Layer):
             return result
         
         if self.from_logits:
-            cls_predictions = tf.map_fn(subtract_other_sum, class_prediction, dtype=float, fn_output_signature=float)
+            cls_sum = tf.map_fn(subtract_other_sum, class_prediction, dtype=float, fn_output_signature=float)
+            cls_predictions = tf.nn.softmax(cls_sum)
             
 
 
@@ -295,7 +304,8 @@ class PreSoftSumNMS(keras.layers.Layer):
 
         output = {
             "boxes": nms_box,
-            "cls_prob": nms_cls
+            "cls_prob": nms_cls,
+            "raw":cls_predictions
         }
 
 

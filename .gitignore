@@ -17,3 +17,6 @@ best_weights
 *.h5
 *.keras
 model_epoch_*
+distrib_weights
+specialtest
+softmax_sum

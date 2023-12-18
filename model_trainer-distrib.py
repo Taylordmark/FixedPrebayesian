@@ -52,7 +52,7 @@ parser.add_argument("--num_imgs", "-n", help="number of images", default=500, ty
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="test", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
-parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
+parser.add_argument("--min_confidence", "-c", help="min confidence", default=.085, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="yolo-cls-list.txt", type=str)
 
 
@@ -167,25 +167,13 @@ if "test" in args.mode:
         
             detections = detector(image)
 
-            print(detections)
 
-            boxes = np.asarray(detections["boxes"][0])
-
+            boxes = np.asarray(detections["boxes"])
             cls_prob = np.asarray(detections["cls_prob"])
-
-            # print(np.max(cls_prob[0]))
-            # print(np.sum(cls_prob[0]))
-
-            print(len(cls_prob[0][0]))
-
-            cls_id = np.asarray(np.argmax(cls_prob, axis=2))[0]
+            cls_id = np.argmax(detections["cls_prob"], axis=1)
 
             key_list = coco_ds.key_list
             
-            # print(boxes)
-            print(cls_id)
-
-            #print(cls_prob[0])
 
             correct_prob = []
             for i in range(len(cls_prob)):
@@ -206,7 +194,7 @@ if "test" in args.mode:
             print("VS")
             print(boxes)
 
-            visualize_detections_and_gt(image, boxes, cls_name, correct_prob[0],
+            visualize_detections_and_gt(image, boxes, cls_name, correct_prob,
                                         sample["bounding_boxes"]["boxes"], gt_name)
         # except IndexError:
         #     print("NO VALID DETECTIONS")
