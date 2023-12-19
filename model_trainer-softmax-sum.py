@@ -54,6 +54,7 @@ parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do 
 parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
 parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="yolo-cls-list.txt", type=str)
+parser.add_argument("--loss_function", "-x", help="loss function to use, bce, cce, mse", default="bce", type=str)
 
 
 args = parser.parse_args()
@@ -126,7 +127,27 @@ val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
 detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, nms_fn=PreSoftSumNMS)
 
 
+
 #distrib_loss = tfp.experimental.nn.losses.neg
+
+
+classification_loss = keras.losses.BinaryCrossentropy(
+    reduction="sum"
+)
+
+if args.loss_function == 'cce':
+    classification_loss = keras.losses.CategoricalCrossentropy(
+        reduction="sum"
+    )
+if args.loss_function == 'sce':
+    classification_loss = keras.losses.SparseCategoricalCrossentropy (
+        reduction="sum"
+    )
+if args.loss_function == 'mse':
+    classification_loss = keras.losses.MeanSquaredError(
+        reduction="sum"
+    )
+
 
 LEARNING_RATE = 0.00025
 GLOBAL_CLIPNORM = 10
@@ -137,7 +158,9 @@ optimizer = tf.keras.optimizers.Adam(
 )
 
 detector.model.compile(
-    optimizer=optimizer, classification_loss='binary_crossentropy', box_loss="ciou", jit_compile=False
+    optimizer=optimizer, classification_loss=classification_loss, box_loss="ciou", jit_compile=False,
+    box_loss_weight=7.5,
+    classification_loss_weight=0.5,
 )
 
 if "train" in args.mode:
