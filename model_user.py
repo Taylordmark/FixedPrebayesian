@@ -104,7 +104,7 @@ GLOBAL_CLIPNORM = 10
 optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE, global_clipnorm=GLOBAL_CLIPNORM)
 model.compile(optimizer=optimizer, classification_loss="binary_crossentropy", box_loss="ciou", jit_compile=False)
 
-latest_checkpoint = tf.train.latest_checkpoint("/remote_home/Thesis/Prebayesian/best_weights")
+latest_checkpoint = tf.train.latest_checkpoint("/remote_home/Thesis/Prebayesian/categorical_crossentropy")
 model.load_weights(latest_checkpoint).expect_partial()
 
 image_folder = ("/remote_home/Thesis/BDD_Files/traffic")

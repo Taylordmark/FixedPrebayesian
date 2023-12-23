@@ -48,9 +48,9 @@ parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the
 parser.add_argument("--download", "-d", type=str, help="Whether to download the dataset images or not", default="False")
 parser.add_argument("--batch_size", "-b", type=int, default=16)
 parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
-parser.add_argument("--num_imgs", "-n", help="number of images", default=500, type=int)
+parser.add_argument("--num_imgs", "-n", help="number of images", default=1250, type=int)
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
-parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="test", type=str)
+parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="train", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
 parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="yolo-cls-list.txt", type=str)
@@ -149,7 +149,7 @@ if args.loss_function == 'mse':
     )
 
 
-LEARNING_RATE = 0.00025
+LEARNING_RATE = 0.0001
 GLOBAL_CLIPNORM = 10
 
 optimizer = tf.keras.optimizers.Adam(
@@ -171,7 +171,7 @@ if "train" in args.mode:
     epochs=args.epochs,
     callbacks=[tf.keras.callbacks.ModelCheckpoint(
             filepath=os.path.join(model_dir, "weights" + "_epoch_{epoch}"),
-            monitor="loss",
+            monitor="val_loss",
             save_best_only=True,
             save_weights_only=True,
             verbose=1,

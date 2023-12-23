@@ -32,10 +32,10 @@ if gpus:
 
 parser = argparse.ArgumentParser(description="Model Trainer")
 
-parser.add_argument("--image_dir", "-d", help="path to test image directory", default="train")
-parser.add_argument("--checkpoint_path", "-p", help="path to load checkpoint", default="best_weights")
-parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
-parser.add_argument("--min_confidence", "-c", help="min confidence", default=.1, type=float)
+parser.add_argument("--image_dir", "-d", help="path to test image directory", default="test")
+parser.add_argument("--checkpoint_path", "-p", help="path to load checkpoint", default="/remote_home/Thesis/Prebayesian/categorical_crossentropy")
+parser.add_argument("--max_iou", "-i", help="max iou", default=.4, type=float)
+parser.add_argument("--min_confidence", "-c", help="min confidence", default=.05, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="", type=str)
 
 

@@ -148,7 +148,7 @@ if "train" in args.mode:
     epochs=args.epochs,
     callbacks=[tf.keras.callbacks.ModelCheckpoint(
             filepath=os.path.join(model_dir, "weights" + "_epoch_{epoch}"),
-            monitor="loss",
+            monitor="val_loss",
             save_best_only=True,
             save_weights_only=True,
             verbose=1,
