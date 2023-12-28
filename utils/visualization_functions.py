@@ -18,9 +18,7 @@ def visualize_detections_multimodal_classes(
     plt.axis("off")
     plt.imshow(image)
     ax = plt.gca()
-    print(classes)
     for box, _cls, score in zip(boxes, classes, scores):
-        print(_cls)
         text = ""
         for i in range(len(_cls)):
             text += "{}: {:.2f} - ".format(_cls[i], score[i])

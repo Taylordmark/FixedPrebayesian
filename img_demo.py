@@ -78,41 +78,12 @@ for img in ds:
         cls_prob = []
         cls_id = []
 
-        # for cls in nms_cls[0]:
-
-            
-        #     dist = tfp.distributions.Multinomial(1, logits=cls)
-
-        #     soft = tf.nn.softmax(logits=cls)
-
-
-        #     # n = 1e6
-        #     # mean = tf.cast(
-        #     #     tf.histogram_fixed_width(
-        #     #     dist.sample(int(n)),
-        #     #     [0, num_classes],
-        #     #     nbins=num_classes),
-        #     #     dtype=tf.float32) / (n)
-            
-        #     mean = dist.mean()
-
-        #     if (np.max(mean) < args.min_confidence):
-        #         continue
-
-        #     print(dist.log_prob(soft/2))
-        #     softmax2 = tf.nn.softmax(mean)
-        #     #mode_idx = np.argmax(dist.mode())
-        #     print(f"real {np.argmax(cls)} vs {np.argmax(mean)} sum is {np.sum(mean)} max is {np.max(mean)} softmax is {np.max(soft.numpy())} distrib soft is {np.max(softmax2)} and sum {np.sum(softmax2)}")
-        #     print(soft.numpy())
-        #     print(mean)
-        #     cls_prob.append(mean)
-        #     cls_id.append(np.argmax(mean))
-
-        #print(cls_prob)
 
 
         boxes = np.asarray(detections["boxes"])
         cls_prob = np.asarray(detections["cls_prob"])
+
+        print(np.max(cls_prob))
 
 
         for distribs in cls_prob:
@@ -123,16 +94,13 @@ for img in ds:
             ids = []
             min = np.min(distribs)
             for prob in distribs:
-                if prob > min+.01:
+                if prob > min+.005:
                     ids.append(i)
                 i +=1
             cls_id.append(ids)
             
 
 
-
-        print(boxes)
-        print(cls_prob)
         # print(np.sum(cls_prob,axis=1))
         # print(cls_id)
 
@@ -144,7 +112,6 @@ for img in ds:
                 names.append(cls_list[cls_n])
             cls_name.append(names)
 
-        print(cls_name)
         
         correct_prob = []
         for i in range(len(cls_prob)):

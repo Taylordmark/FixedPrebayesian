@@ -20,3 +20,6 @@ model_epoch_*
 distrib_weights
 specialtest
 softmax_sum
+mean_squared_error
+categorical_crossentropy
+binary_crossentropy

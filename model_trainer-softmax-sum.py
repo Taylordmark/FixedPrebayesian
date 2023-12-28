@@ -55,6 +55,7 @@ parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
 parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="yolo-cls-list.txt", type=str)
 parser.add_argument("--loss_function", "-x", help="loss function to use, bce, cce, mse", default="bce", type=str)
+parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
 
 
 args = parser.parse_args()
@@ -130,24 +131,33 @@ detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, n
 
 #distrib_loss = tfp.experimental.nn.losses.neg
 
+label_smooth = max(min(args.label_smoothing, 1), 0)
+
 
 classification_loss = keras.losses.BinaryCrossentropy(
-    reduction="sum"
+    reduction="sum",
+    label_smoothing=label_smooth,
+    from_logits=True
 )
 
 if args.loss_function == 'cce':
     classification_loss = keras.losses.CategoricalCrossentropy(
-        reduction="sum"
+        reduction="sum",
+        from_logits=True,
+        label_smoothing=label_smooth
     )
-if args.loss_function == 'sce':
-    classification_loss = keras.losses.SparseCategoricalCrossentropy (
-        reduction="sum"
-    )
+# if args.loss_function == 'sce': #This is likely wrong, since we are using one hot encoded labels
+#     classification_loss = keras.losses.SparseCategoricalCrossentropy (
+#         reduction="sum",
+#     )
 if args.loss_function == 'mse':
     classification_loss = keras.losses.MeanSquaredError(
+        reduction="sum", 
+    )
+if args.loss_function == 'pos':
+    classification_loss = keras.losses.Poisson (
         reduction="sum"
     )
-
 
 LEARNING_RATE = 0.0001
 GLOBAL_CLIPNORM = 10
