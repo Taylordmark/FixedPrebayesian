@@ -23,11 +23,13 @@ class CocoDSManager:
     cls_list: which classes to download images with, leave blank to get all
     """
     @tf.autograph.experimental.do_not_convert
-    def __init__(self, annotation_pth:str, save_pth:str, max_samples:int=60, test_split_denominator:int = 5, cls_list:list=None, download=True, resize_size=(640, 640), yxyw_percent=True) -> None:
+    def __init__(self, annotation_pth:str, save_pth:str, max_samples:int=60, test_split_denominator:int = 5, 
+                 cls_list:list=None, download_list:list=None, download=True, resize_size=(640, 640), yxyw_percent=True) -> None:
         self.ann_pth = annotation_pth
         self.save_pth = save_pth
         self.slice = max_samples
         self.cls_list = cls_list
+        self.download_list = download_list
         self.split = test_split_denominator
 
         self.coco = COCO(self.ann_pth)
@@ -39,10 +41,16 @@ class CocoDSManager:
         coco = self.coco
         key_list = list(coco.cats.keys())
 
+        if self.download_list is None and self.cls_list is not None:
+            self.download_list = self.cls_list
+
 
         # Specify a list of category names of interest
-        if self.cls_list is not None:
-            catIds = coco.getCatIds(catNms=self.cls_list)
+        if self.download_list is not None:
+            catIds = coco.getCatIds(catNms=self.download_list)
+
+            clsIds = coco.getCatIds(catNms=self.cls_list)
+
 
             
 
@@ -56,7 +64,7 @@ class CocoDSManager:
 
             imgIds = list(set(imgIds))
 
-            key_list = list(catIds)
+            key_list = list(clsIds)
         else:
             imgIds = coco.getImgIds()
         # Get the corresponding image ids and images using loadImgs
@@ -113,14 +121,15 @@ class CocoDSManager:
 
 
         #downloads images to disk 
-        #TODO handle images already being there
-        if download:
-            images = coco.loadImgs(img_to_load)
+        images = coco.loadImgs(img_to_load)
 
-            print(f"LOADING {len(img_to_load)} IMAGES")
-            for im in images:
+        print(f"LOADING {len(img_to_load)} IMAGES")
+        for im in images:
+
+            name = self.save_pth + r"/" + im['file_name']
+            if not os.path.isfile(name):
                 img_data = requests.get(im['coco_url']).content
-                with open(self.save_pth + r"/" + im['file_name'], 'wb') as handler:
+                with open(name, 'wb') as handler:
                     handler.write(img_data)
 
 

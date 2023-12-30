@@ -25,6 +25,8 @@ import tensorflow_probability as tfp
 
 from utils.yolov8prob import ProbYolov8Detector
 
+from utils.visualization_functions import visualize_multimodal_detections_and_gt
+
 
 tf.keras.backend.clear_session()
 
@@ -45,7 +47,7 @@ parser = argparse.ArgumentParser(description="Model Trainer")
 
 parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset", default="/remote_home/Thesis/annotations/instances_train2017.json")
 parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset", default="/remote_home/Thesis/train")
-parser.add_argument("--download", "-d", type=str, help="Whether to download the dataset images or not", default="False")
+parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list.txt")
 parser.add_argument("--batch_size", "-b", type=int, default=16)
 parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
 parser.add_argument("--num_imgs", "-n", help="number of images", default=1250, type=int)
@@ -64,6 +66,8 @@ model_dir = args.checkpoint_path
 
 batch_size = args.batch_size
 
+do_download = args.download_path != "False"
+
 
 #Load the class lists from text, if not specified, it gets all 80 classes
 if (args.cls_path == ""):
@@ -75,11 +79,22 @@ else:
 
 print(cls_list)
 
+
+if (args.download_path == "" or args.download_path == "False"):
+    download_list = None
+else:
+    with open(args.download_path) as f:
+        download_list = f.readlines()
+        download_list = [cls.replace("\n", "") for cls in download_list]
+
 #The detector will only be the length of the class list
 num_classes = 80 if cls_list is None else len(cls_list)
 
+print(num_classes)
 
-coco_ds = CocoDSManager(args.json_path, args.save_path, max_samples=args.num_imgs, download=args.download == "True", yxyw_percent=False, cls_list=cls_list)
+
+coco_ds = CocoDSManager(args.json_path, args.save_path, max_samples=args.num_imgs, 
+                        download=do_download, yxyw_percent=False, cls_list=cls_list, download_list=download_list)
 
 
 train_ds = coco_ds.train_ds
@@ -195,37 +210,59 @@ if "test" in args.mode:
     for sample in coco_ds.train_ds.take(5):
 
 
-        try:
+        #try:
             image = tf.cast(sample["images"], dtype=tf.float32)
 
         
             detections = detector(image)
 
-            boxes = np.asarray(detections["boxes"][0])
+            boxes = np.asarray(detections["boxes"])
 
             cls_prob = np.asarray(detections["cls_prob"])
 
             # print(np.max(cls_prob[0]))
             # print(np.sum(cls_prob[0]))
 
-            cls_id = np.asarray(np.argmax(cls_prob))
+            cls_id = []
+
+            for distribs in cls_prob:
+                i = 0
+
+                ids = []
+                min = np.min(distribs)
+                for prob in distribs:
+                    if prob > min+.005:
+                        ids.append(i)
+                    i +=1
+                cls_id.append(ids)
+            
+
+            cls_name = []
+
+            for clses in cls_id:
+                names = []
+                for cls_n in clses:
+                    names.append(cls_list[cls_n])
+                cls_name.append(names)
 
             key_list = coco_ds.key_list
             
-            # print(boxes)
-            # print(cls_id)
 
-            print(cls_prob[0])
+            print(cls_prob)
+
 
             correct_prob = []
             for i in range(len(cls_prob)):
-                correct_prob.append(cls_prob[i][cls_id[i]])
+
+                probs = []
+                for ids in cls_id[i]:
+                    probs.append(cls_prob[i][ids])
+                correct_prob.append(probs)
 
             
 
             gt_name = [coco_ds.coco.cats[key_list[int(x)]]['name'] for x in np.asarray(sample["bounding_boxes"]["classes"])]
                  
-            cls_name = [coco_ds.coco.cats[key_list[int(x)]]['name'] for x in np.asarray(cls_id)]
 
 
             # visualize_dataset(image, sample["bounding_boxes"]["boxes"][:3], sample["bounding_boxes"]["classes"][:3])
@@ -237,9 +274,9 @@ if "test" in args.mode:
             print(boxes)
 
 
-            visualize_detections_and_gt(image, boxes, cls_name, correct_prob,
+            visualize_multimodal_detections_and_gt(image, boxes, cls_name, correct_prob,
                                         sample["bounding_boxes"]["boxes"], gt_name)
-        except IndexError:
-            print("NO VALID DETECTIONS")
-            continue
+        # except IndexError:
+        #     print("NO VALID DETECTIONS")
+        #     continue
         #show_frame_no_deep(np.asarray(image), np.asarray(detections["boxes"][0]), 2000)
