@@ -19,7 +19,6 @@ class CocoDSManager:
 
     annotation_pth:str path to a coco annotation json file, which can be downloaded here: https://cocodataset.org/#download
     save_pth:str directory to save images
-    slice: how many images are requested
     cls_list: which classes to download images with, leave blank to get all
     """
     @tf.autograph.experimental.do_not_convert
@@ -27,7 +26,6 @@ class CocoDSManager:
                  cls_list:list=None, download_list:list=None, download=True, resize_size=(640, 640), yxyw_percent=True) -> None:
         self.ann_pth = annotation_pth
         self.save_pth = save_pth
-        self.slice = max_samples
         self.cls_list = cls_list
         self.download_list = download_list
         self.split = test_split_denominator
@@ -41,13 +39,13 @@ class CocoDSManager:
         coco = self.coco
         key_list = list(coco.cats.keys())
 
-        if self.download_list is None and self.cls_list is not None:
-            self.download_list = self.cls_list
 
 
         # Specify a list of category names of interest
         if self.download_list is not None:
-            catIds = coco.getCatIds(catNms=self.download_list)
+
+            cat_list = self.cls_list if self.download_list is None else self.download_list.keys()
+            catIds = coco.getCatIds(catNms=cat_list)
 
             clsIds = coco.getCatIds(catNms=self.cls_list)
 
@@ -59,8 +57,15 @@ class CocoDSManager:
             for cat in catIds:  
                 tempIds = coco.getImgIds(catIds=[cat])
 
+                key = coco.cats[cat]
+
+
+                i = 0
                 for ids in tempIds:
-                    imgIds.append(ids)
+                    if i < int(self.download_list[key['name']]) and ids not in imgIds:
+                        imgIds.append(ids)
+                        i += 1  
+
 
             imgIds = list(set(imgIds))
 
@@ -68,10 +73,6 @@ class CocoDSManager:
         else:
             imgIds = coco.getImgIds()
         # Get the corresponding image ids and images using loadImgs
-
-        idx = self.slice if self.slice < len(imgIds) else len(imgIds)
-
-        imgIds = imgIds[:idx]
 
         img_to_load = []
         labels = coco.loadAnns(coco.getAnnIds(imgIds))

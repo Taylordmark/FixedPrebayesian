@@ -50,7 +50,6 @@ parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the
 parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list.txt")
 parser.add_argument("--batch_size", "-b", type=int, default=16)
 parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
-parser.add_argument("--num_imgs", "-n", help="number of images", default=1250, type=int)
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="train", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
@@ -84,8 +83,13 @@ if (args.download_path == "" or args.download_path == "False"):
     download_list = None
 else:
     with open(args.download_path) as f:
-        download_list = f.readlines()
-        download_list = [cls.replace("\n", "") for cls in download_list]
+        download_lines = f.readlines()
+        download_list = {}
+        for line in download_lines:
+            split = line.replace("\n", "").split(",")
+            download_list[split[0]]=split[1]
+
+print(download_list)
 
 #The detector will only be the length of the class list
 num_classes = 80 if cls_list is None else len(cls_list)
@@ -93,8 +97,8 @@ num_classes = 80 if cls_list is None else len(cls_list)
 print(num_classes)
 
 
-coco_ds = CocoDSManager(args.json_path, args.save_path, max_samples=args.num_imgs, 
-                        download=do_download, yxyw_percent=False, cls_list=cls_list, download_list=download_list)
+coco_ds = CocoDSManager(args.json_path, args.save_path, download=do_download, 
+                        yxyw_percent=False, cls_list=cls_list, download_list=download_list)
 
 
 train_ds = coco_ds.train_ds
