@@ -32,18 +32,17 @@ if gpus:
 parser = argparse.ArgumentParser(description="Model Trainer")
 parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset", default="/remote_home/Thesis/annotations/instances_train2017.json")
 parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset", default="/remote_home/Thesis/train")
-parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list.txt")
+parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list_traffic.txt")
 parser.add_argument("--batch_size", "-b", type=int, default=16)
 parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="train", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
 parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
-parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="yolo-cls-list.txt", type=str)
-parser.add_argument("--loss_function", "-x", help="loss function to use, bce, cce, mse", default="bce", type=str)
+parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="yolo-cls-class_list_traffic.txt", type=str)
+parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cce, pos", default="mse", type=str)
 parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
 parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='Softmax')
-
 
 
 args = parser.parse_args()
