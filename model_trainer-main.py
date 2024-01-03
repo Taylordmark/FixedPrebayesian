@@ -1,37 +1,23 @@
 import argparse
-
 import tensorflow as tf
 import numpy as np
-
 from utils.coco_dataset_manager import *
-
 import os
 from tqdm.auto import tqdm
 import xml.etree.ElementTree as ET
-
 import tensorflow as tf
 from tensorflow import keras
 import keras_cv
-
 from utils.yolo_utils import *
-
 from utils.custom_retinanet import prepare_image
-
 from utils.nonmaxsuppression import *
-
 from utils.negloglikely import nll
-
 import tensorflow_probability as tfp
-
 from utils.yolov8prob import ProbYolov8Detector
-
 from utils.visualization_functions import visualize_multimodal_detections_and_gt
 
-
 tf.keras.backend.clear_session()
-
 tf.compat.v1.enable_eager_execution()
-
 
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
@@ -44,7 +30,6 @@ if gpus:
         print(e)
 
 parser = argparse.ArgumentParser(description="Model Trainer")
-
 parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset", default="/remote_home/Thesis/annotations/instances_train2017.json")
 parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset", default="/remote_home/Thesis/train")
 parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list.txt")
@@ -62,12 +47,13 @@ parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently
 
 
 args = parser.parse_args()
-
 model_dir = args.checkpoint_path
-
 batch_size = args.batch_size
-
 do_download = args.download_path != "False"
+
+
+LEARNING_RATE = 0.0001
+GLOBAL_CLIPNORM = 5
 
 
 #Load the class lists from text, if not specified, it gets all 80 classes
@@ -77,9 +63,7 @@ else:
     with open(args.cls_path) as f:
         cls_list = f.readlines()
         cls_list = [cls.replace("\n", "") for cls in cls_list]
-
 print(cls_list)
-
 
 if (args.download_path == "" or args.download_path == "False"):
     download_list = None
@@ -98,10 +82,8 @@ num_classes = 80 if cls_list is None else len(cls_list)
 
 print(num_classes)
 
-
 coco_ds = CocoDSManager(args.json_path, args.save_path, download=do_download, 
                         yxyw_percent=False, cls_list=cls_list, download_list=download_list)
-
 
 train_ds = coco_ds.train_ds
 val_ds = coco_ds.val_ds
@@ -125,7 +107,6 @@ train_ds = train_ds.shuffle(batch_size * 4)
 train_ds = train_ds.ragged_batch(batch_size, drop_remainder=True)
 train_ds = train_ds.map(augmenter, num_parallel_calls=tf.data.AUTOTUNE)
 
-
 resizing = keras_cv.layers.JitteredResize(
     target_size=(640, 640),
     scale_factor=(0.75, 1.3),
@@ -139,7 +120,6 @@ val_ds = val_ds.map(resizing, num_parallel_calls=tf.data.AUTOTUNE)
 def dict_to_tuple(inputs):
     return inputs["images"], inputs["bounding_boxes"]
 
-
 train_ds = train_ds.map(dict_to_tuple, num_parallel_calls=tf.data.AUTOTUNE)
 train_ds = train_ds.prefetch(tf.data.AUTOTUNE)
 
@@ -150,40 +130,23 @@ nms_fn = DistributionNMS if args.nms_layer == 'Softmax' else PreSoftSumNMS
 
 detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, nms_fn=nms_fn)
 
-
-
 #distrib_loss = tfp.experimental.nn.losses.neg
 
 label_smooth = max(min(args.label_smoothing, 1), 0)
 
-
-classification_loss = keras.losses.BinaryCrossentropy(
-    reduction="sum",
-    label_smoothing=label_smooth,
-    from_logits=True
-)
-
+classification_loss = classification_loss = keras.losses.MeanSquaredError(
+        reduction="sum", 
+    )
 if args.loss_function == 'cce':
     classification_loss = keras.losses.CategoricalCrossentropy(
         reduction="sum",
         from_logits=True,
         label_smoothing=label_smooth
     )
-# if args.loss_function == 'sce': #This is likely wrong, since we are using one hot encoded labels
-#     classification_loss = keras.losses.SparseCategoricalCrossentropy (
-#         reduction="sum",
-#     )
-if args.loss_function == 'mse':
-    classification_loss = keras.losses.MeanSquaredError(
-        reduction="sum", 
-    )
 if args.loss_function == 'pos':
     classification_loss = keras.losses.Poisson (
         reduction="sum"
     )
-
-LEARNING_RATE = 0.0001
-GLOBAL_CLIPNORM = 10
 
 optimizer = tf.keras.optimizers.Adam(
     learning_rate=LEARNING_RATE,
@@ -211,26 +174,16 @@ if "train" in args.mode:
         ),],
     )
 
-
 if "test" in args.mode:
     detector.load_weights(args.checkpoint_path)
 
     for sample in coco_ds.train_ds.take(5):
-
-
         #try:
             image = tf.cast(sample["images"], dtype=tf.float32)
 
-        
             detections = detector(image)
-
             boxes = np.asarray(detections["boxes"])
-
             cls_prob = np.asarray(detections["cls_prob"])
-
-            # print(np.max(cls_prob[0]))
-            # print(np.sum(cls_prob[0]))
-
             cls_id = []
 
             for distribs in cls_prob:
@@ -246,7 +199,6 @@ if "test" in args.mode:
             
 
             cls_name = []
-
             for clses in cls_id:
                 names = []
                 for cls_n in clses:
@@ -255,9 +207,7 @@ if "test" in args.mode:
 
             key_list = coco_ds.key_list
             
-
             print(cls_prob)
-
 
             correct_prob = []
             for i in range(len(cls_prob)):
@@ -266,13 +216,9 @@ if "test" in args.mode:
                 for ids in cls_id[i]:
                     probs.append(cls_prob[i][ids])
                 correct_prob.append(probs)
-
             
-
             gt_name = [coco_ds.coco.cats[key_list[int(x)]]['name'] for x in np.asarray(sample["bounding_boxes"]["classes"])]
                  
-
-
             # visualize_dataset(image, sample["bounding_boxes"]["boxes"][:3], sample["bounding_boxes"]["classes"][:3])
             # visualize_detections(image, boxes[0], cls_id[0], cls_prob[0])
 
@@ -280,7 +226,6 @@ if "test" in args.mode:
 
             print("VS")
             print(boxes)
-
 
             visualize_multimodal_detections_and_gt(image, boxes, cls_name, correct_prob,
                                         sample["bounding_boxes"]["boxes"], gt_name)
