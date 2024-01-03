@@ -1,0 +1,10 @@
+person
+bus
+car
+truck
+motorcycle
+traffic light
+street sign
+stop sign
+parking meter
+bench
