@@ -17,7 +17,8 @@ from utils.nonmaxsuppression import *
 
 class ProbYolov8Detector:
 
-    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", min_confidence=.1, max_iou=.5, nms_fn=PreSoftSumNMS) -> None:
+    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", 
+                 min_confidence=.1, max_iou=.5, nms_fn=PreSoftSumNMS, use_flipout=False) -> None:
 
 
         backbone = keras_cv.models.YOLOV8Backbone.from_preset(
@@ -33,17 +34,19 @@ class ProbYolov8Detector:
             prediction_decoder=nms
         )
 
-        for layer in self.model.layers:
-            if "conv" in layer.name:
-                layer = tfp.layers.Convolution2DFlipout(
-                    filters=layer.filters,
-                    kernel_size=layer.kernel_size,
-                    strides=layer.strides,
-                    padding=layer.padding,
-                    data_format=layer.data_format,
-                    dilation_rate=layer.dilation_rate,
-                    activation=layer.activation,
-                )
+
+        if use_flipout:
+            for layer in self.model.layers:
+                if "conv" in layer.name:
+                    layer = tfp.layers.Convolution2DFlipout(
+                        filters=layer.filters,
+                        kernel_size=layer.kernel_size,
+                        strides=layer.strides,
+                        padding=layer.padding,
+                        data_format=layer.data_format,
+                        dilation_rate=layer.dilation_rate,
+                        activation=layer.activation,
+                    )
 
     def load_weights(self, checkpoint_path):
         latest_checkpoint = tf.train.latest_checkpoint(checkpoint_path)

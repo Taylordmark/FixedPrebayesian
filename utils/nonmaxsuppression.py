@@ -152,8 +152,9 @@ class DistributionNMS(keras.layers.Layer):
         #from [-inf, inf] to [0, 1] with the sum adding up to 1
 
 
-        # if self.from_logits:
-        #     cls_predictions:tf.Tensor = ops.softmax(cls_predictions)
+        
+        if self.from_logits:
+            cls_predictions:tf.Tensor = ops.softmax(class_prediction)
 
 
         def nms(x):
@@ -183,19 +184,13 @@ class DistributionNMS(keras.layers.Layer):
             return nms_box, nms_cls
 
 
-
         nms_box, nms_cls = tf.map_fn(nms, (box_prediction, cls_predictions), dtype=(tf.float32, tf.float32), 
             fn_output_signature=(tf.float32, tf.float32))
         
-        raw_nms = nms_cls
-
-        if self.from_logits:
-            nms_cls:tf.Tensor = ops.softmax(nms_cls)
 
         output = {
             "boxes": nms_box,
             "cls_prob": nms_cls,
-            "raw": raw_nms
         }
 
 
