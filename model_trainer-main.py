@@ -44,12 +44,10 @@ parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cc
 parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
 parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='Softmax')
 
-
 args = parser.parse_args()
 model_dir = args.checkpoint_path
 batch_size = args.batch_size
 do_download = args.download_path != "False"
-
 
 LEARNING_RATE = 0.0001
 GLOBAL_CLIPNORM = 5
