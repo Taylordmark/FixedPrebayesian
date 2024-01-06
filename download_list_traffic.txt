@@ -1,4 +1,4 @@
-car,500
-truck,500
-bus,500
+car,750
+truck,750
+bus,750
 motorcycle, 100

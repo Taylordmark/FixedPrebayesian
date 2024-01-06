@@ -39,7 +39,7 @@ parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", d
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="train", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
 parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
-parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="yolo-cls-class_list_traffic.txt", type=str)
+parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="class_list_traffic.txt", type=str)
 parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cce, pos", default="mse", type=str)
 parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
 parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='Softmax')
@@ -164,7 +164,7 @@ if "train" in args.mode:
     epochs=args.epochs,
     callbacks=[tf.keras.callbacks.ModelCheckpoint(
             filepath=os.path.join(model_dir, "weights" + "_epoch_{epoch}"),
-            monitor="loss",
+            monitor="val_loss",
             save_best_only=True,
             save_weights_only=True,
             verbose=1,
