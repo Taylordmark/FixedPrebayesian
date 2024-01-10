@@ -7,25 +7,30 @@ from tensorflow.keras.preprocessing.image import img_to_array, load_img
 from tqdm.auto import tqdm
 import xml.etree.ElementTree as ET
 import tensorflow_probability as tfp
-
 from utils.coco_dataset_manager import *
 from utils.yolo_utils import *
 from utils.custom_retinanet import prepare_image
 from utils.nonmaxsuppression import *
 from utils.negloglikely import nll
 from utils.yolov8prob import ProbYolov8Detector
+from PIL import Image
+import matplotlib.pyplot as plt
+import pickle
+
+#import torch
 
 tf.keras.backend.clear_session()
 tf.compat.v1.enable_eager_execution()
+#torch.cuda.empty_cache()
 
 # Hardcode paths and parameters
-checkpoint_path = r"/remote_home/Thesis/Completed_Models/Softmax_mse_wrongloss"
+checkpoint_path = r"/remote_home/Thesis/Completed_Models/Softmax_mse2"
 image_folder = r"/remote_home/Thesis/DataFiles/small_test_videos/BDD_val_b1c9c847-3bda4659"
 cls_path = r"/remote_home/Thesis/Prebayesian/class_list_traffic.txt"
 download_path = r"/remote_home/Thesis/Prebayesian/download_list_traffic.txt"
 loss_function = "mse"  # mse, cce, or pos
-min_confidence = 0.02
 nms_layer = 'Softmax'  # Softmax or SoftmaxSum
+min_confidence = 0.018
 label_smoothing = 0
 
 LEARNING_RATE = 0.0001
@@ -97,6 +102,11 @@ print("Loading images...")
 # Get a list of all image files in the folder
 image_files = [f for f in os.listdir(image_folder) if f.endswith(('.jpg', '.jpeg', '.png'))]
 file_count = len(image_files)
+print("Images loaded")
+
+# Load detector Weights
+detector.load_weights(checkpoint_path)
+print("Detector loaded")
 
 # Define a function to load and preprocess a single image
 def load_and_preprocess_image(img_path):
@@ -105,36 +115,48 @@ def load_and_preprocess_image(img_path):
     img_tensor = tf.convert_to_tensor(img_array, dtype=tf.float32) / 255.0
     return img_tensor
 
-print("Images loaded and converted to tensor")
+# Assuming detector, cls_list, and image_files are defined in your code
+detection_results = {}
+prev_max = 0
 
-# Load detector Weights
-detector.load_weights(checkpoint_path)
-print("Detector loaded")
+for frame_number, frame_path in enumerate(image_files):
+    checkpoint = round(frame_number / file_count * 100, 0)
+    if checkpoint > prev_max:
+        print(f"{checkpoint}.2f%")
+    prev_max = checkpoint
 
-detction_results = {}
+    frame = load_and_preprocess_image(os.path.join(image_folder, frame_path))
 
-for frame_number, sample in enumerate(image_files):
-    frame = load_and_preprocess_image(os.path.join(image_folder, sample))
+    # Perform object detection
     detections = detector(frame)
     boxes = np.asarray(detections["boxes"])
     cls_prob = np.asarray(detections["cls_prob"])
-    cls_id = []
-    for distribs in cls_prob:
-        i = 0
-        ids = []
-        min = np.min(distribs)
-        for prob in distribs:
-            if prob > min+.005:
-                ids.append(i)
-            i +=1
-        cls_id.append(ids)
-    correct_prob = []
-    for i in range(len(cls_prob)):
-        probs = []
-        for ids in cls_id[i]:
-            probs.append(cls_prob[i][ids])
-        correct_prob.append(probs)
 
-    detction_results[frame_number] = {"boxes":boxes,"probs":cls_prob}
+    saved_boxes = []
+    saved_probs = []
+    # Get bounding boxes and class names
+    for box, prob_list in zip(boxes, cls_prob):
+        cur_min = min(prob_list)
+        
+        probability = max(prob_list)
+        
+        if probability > cur_min * 1.0015:
 
+            chosen_class = np.argmax(prob_list)
+            name = cls_list[chosen_class]
 
+            # Extract coordinates
+            ymin, xmin, ymax, xmax = box
+
+            print(f"Index: {np.argmax(prob_list)}, Probability: {probability}")
+
+            saved_boxes.append(box)
+            saved_probs.append(prob_list)
+    detection_results[frame_number] = {'boxes':saved_boxes, 'probabilities':saved_probs}
+
+# Specify the file path
+file_path = 'my_dict.pkl'
+
+# Save the dictionary to a .pkl file
+with open(file_path, 'wb') as file:
+    pickle.dump(detection_results, file)
