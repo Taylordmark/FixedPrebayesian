@@ -79,8 +79,8 @@ class ProbYolov8Detector:
 
 
         ret = {"boxes":detection['boxes'][0],
-               "cls_prob":detection['cls_prob'][0]}
-               #"cls_prob":detection['confidence'][0]}
+               "cls_prob":detection['cls_prob'][0],
+               "confidence":detection['confidence'][0]}
     
 
         return ret
