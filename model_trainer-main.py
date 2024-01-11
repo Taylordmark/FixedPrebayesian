@@ -166,7 +166,7 @@ optimizer = tf.keras.optimizers.Adam(
 box_loss = CIoULoss(bounding_box_format="xywh", reduction="sum")
 
 detector.model.compile(
-    optimizer=optimizer, classification_loss=classification_loss, box_loss="ciou", jit_compile=False,
+    optimizer=optimizer, classification_loss=classification_loss, box_loss=box_loss, jit_compile=False,
     box_loss_weight=10,
     classification_loss_weight=5,
 )
