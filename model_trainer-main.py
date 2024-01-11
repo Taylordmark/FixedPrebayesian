@@ -39,20 +39,20 @@ parser.add_argument("--download_path", "-d", type=str, help="Whether to download
 parser.add_argument("--batch_size", "-b", type=int, default=16)
 parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
-parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="train", type=str)
-parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
+parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="traintest", type=str)
+parser.add_argument("--max_iou", "-i", help="max iou", default=.125, type=float)
 parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="class_list_traffic.txt", type=str)
 parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cce, pos", default="mse", type=str)
 parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
-parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='Softmax')
+parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='SoftmaxSum')
 
 args = parser.parse_args()
 model_dir = args.checkpoint_path
 batch_size = args.batch_size
 do_download = args.download_path != "False"
 
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.00025
 GLOBAL_CLIPNORM = 5
 
 
@@ -166,25 +166,34 @@ optimizer = tf.keras.optimizers.Adam(
 box_loss = CIoULoss(bounding_box_format="xywh", reduction="sum")
 
 detector.model.compile(
-    optimizer=optimizer, classification_loss=classification_loss, box_loss=box_loss, jit_compile=False,
-    box_loss_weight=7.5,
-    classification_loss_weight=0.5,
+    optimizer=optimizer, classification_loss=classification_loss, box_loss="ciou", jit_compile=False,
+    box_loss_weight=10,
+    classification_loss_weight=5,
 )
 
-if "train" in args.mode:
+val_loss_history = []  # Create an empty list to store val losses
 
+if "train" in args.mode:
     detector.model.fit(
-    train_ds,
-    validation_data=val_ds,
-    epochs=args.epochs,
-    callbacks=[tf.keras.callbacks.ModelCheckpoint(
-            filepath=os.path.join(model_dir, "weights" + "_epoch_{epoch}"),
-            monitor="val_loss",
-            save_best_only=True,
-            save_weights_only=True,
-            verbose=1,
-        ),],
+        train_ds,
+        validation_data=val_ds,
+        epochs=args.epochs,
+        callbacks=[
+            tf.keras.callbacks.ModelCheckpoint(
+                filepath=os.path.join(model_dir, "weights" + "_epoch_{epoch}"),
+                monitor="val_loss",
+                save_best_only=True,
+                save_weights_only=True,
+                verbose=1,
+            ),
+            tf.keras.callbacks.LambdaCallback(
+                on_epoch_end=lambda epoch, logs: val_loss_history.append(logs["val_loss"])
+            ),
+        ],
     )
+    # Save the val_loss_history list as a .pkl file
+    with open("val_loss_history.pkl", "wb") as f:
+        pickle.dump(val_loss_history, f)
 
 if "test" in args.mode:
     detector.load_weights(args.checkpoint_path)
