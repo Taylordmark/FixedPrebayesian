@@ -17,7 +17,7 @@ from utils.nonmaxsuppression import *
 
 class ProbYolov8Detector:
 
-    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", 
+    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_l_backbone_coco", box_format="xywh", 
                  min_confidence=.1, max_iou=.5, nms_fn=PreSoftSumNMS, use_flipout=False) -> None:
 
 
@@ -83,8 +83,10 @@ class ProbYolov8Detector:
         input_image, ratio = self.prepare_image(img)
         detection = self.model.predict(input_image)
 
+
         ret = {"boxes":detection['boxes'][0],
                "cls_prob":detection['cls_prob'][0]}
+               #"cls_prob":detection['confidence'][0]}
     
 
         return ret

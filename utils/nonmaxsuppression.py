@@ -110,7 +110,7 @@ class DistributionNMS(keras.layers.Layer):
         from_logits,
         iou_threshold=0.5,
         confidence_threshold=0.5,
-        max_detections=100,
+        max_detections=1000,
         max_detections_per_class=100,
         **kwargs,
     ):
@@ -148,13 +148,18 @@ class DistributionNMS(keras.layers.Layer):
             image_shape=image_shape,
         )
 
-        cls_predictions = class_prediction
         #from [-inf, inf] to [0, 1] with the sum adding up to 1
 
 
+        #tf.print(tf.reduce_max(class_prediction, axis=2))
         
         if self.from_logits:
-            cls_predictions:tf.Tensor = ops.softmax(class_prediction)
+            class_confidence = ops.max(ops.sigmoid(class_prediction), axis=-1)
+            class_prediction:tf.Tensor = ops.softmax(class_prediction)
+
+
+        
+        #tf.print(tf.reduce_max(class_confidence))
 
 
         def nms(x):
@@ -164,11 +169,12 @@ class DistributionNMS(keras.layers.Layer):
 
             box = x[0]
             cls_pred = x[1]
+            cls_conf = x[2]
 
             #determines indices to keep
             idx = tf.image.non_max_suppression(
                 box,
-                tf.reduce_max(cls_pred, axis=1),
+                cls_conf,
                 self.max_detections,
                 self.iou_threshold,
                 self.confidence_threshold,
@@ -184,13 +190,14 @@ class DistributionNMS(keras.layers.Layer):
             return nms_box, nms_cls
 
 
-        nms_box, nms_cls = tf.map_fn(nms, (box_prediction, cls_predictions), dtype=(tf.float32, tf.float32), 
+        nms_box, nms_cls = tf.map_fn(nms, (box_prediction, class_prediction, class_confidence), dtype=(tf.float32, tf.float32), 
             fn_output_signature=(tf.float32, tf.float32))
         
 
         output = {
             "boxes": nms_box,
             "cls_prob": nms_cls,
+            "confidence": class_confidence
         }
 
 

@@ -15,6 +15,8 @@ from utils.negloglikely import nll
 import tensorflow_probability as tfp
 from utils.yolov8prob import ProbYolov8Detector
 from utils.visualization_functions import visualize_multimodal_detections_and_gt
+from keras_cv.losses.ciou_loss import CIoULoss
+
 
 tf.keras.backend.clear_session()
 tf.compat.v1.enable_eager_execution()
@@ -30,6 +32,7 @@ if gpus:
         print(e)
 
 parser = argparse.ArgumentParser(description="Model Trainer")
+
 parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset", default="/remote_home/Thesis/annotations/instances_train2017.json")
 parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset", default="/remote_home/Thesis/train")
 parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list_traffic.txt")
@@ -131,6 +134,7 @@ detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, n
 
 label_smooth = max(min(args.label_smoothing, 1), 0)
 
+
 classification_loss = classification_loss = keras.losses.MeanSquaredError(
         reduction="sum", 
     )
@@ -139,6 +143,15 @@ if args.loss_function == 'cce':
         reduction="sum",
         from_logits=True,
         label_smoothing=label_smooth
+    )
+if args.loss_function == 'sce': #This is likely wrong, since we are using one hot encoded labels
+    classification_loss = keras.losses.SparseCategoricalCrossentropy (
+        reduction="sum",
+        from_logits=True
+    )
+if args.loss_function == 'mse':
+    classification_loss = keras.losses.MeanSquaredError(
+        reduction="sum", 
     )
 if args.loss_function == 'pos':
     classification_loss = keras.losses.Poisson (
@@ -150,8 +163,10 @@ optimizer = tf.keras.optimizers.Adam(
     global_clipnorm=GLOBAL_CLIPNORM,
 )
 
+box_loss = CIoULoss(bounding_box_format="xywh", reduction="sum")
+
 detector.model.compile(
-    optimizer=optimizer, classification_loss=classification_loss, box_loss="ciou", jit_compile=False,
+    optimizer=optimizer, classification_loss=classification_loss, box_loss=box_loss, jit_compile=False,
     box_loss_weight=7.5,
     classification_loss_weight=0.5,
 )
@@ -219,10 +234,11 @@ if "test" in args.mode:
             # visualize_dataset(image, sample["bounding_boxes"]["boxes"][:3], sample["bounding_boxes"]["classes"][:3])
             # visualize_detections(image, boxes[0], cls_id[0], cls_prob[0])
 
-            print(sample["bounding_boxes"]["boxes"])
+            # print(sample["bounding_boxes"]["boxes"])
 
-            print("VS")
-            print(boxes)
+            # print("VS")
+            # print(boxes)
+
 
             visualize_multimodal_detections_and_gt(image, boxes, cls_name, correct_prob,
                                         sample["bounding_boxes"]["boxes"], gt_name)
