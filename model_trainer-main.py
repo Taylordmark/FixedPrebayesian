@@ -16,7 +16,9 @@ import tensorflow_probability as tfp
 from utils.yolov8prob import ProbYolov8Detector
 from utils.visualization_functions import visualize_multimodal_detections_and_gt
 from keras_cv.losses.ciou_loss import CIoULoss
+import pickle
 
+from utils.normalizedmseloss import NormalizedMeanSquaredError
 
 tf.keras.backend.clear_session()
 tf.compat.v1.enable_eager_execution()
@@ -41,7 +43,7 @@ parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="traintest", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.125, type=float)
-parser.add_argument("--min_confidence", "-c", help="min confidence", default=.018, type=float)
+parser.add_argument("--min_confidence", "-c", help="min confidence", default=.5, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="class_list_traffic.txt", type=str)
 parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cce, pos", default="mse", type=str)
 parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
@@ -135,9 +137,8 @@ detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, n
 label_smooth = max(min(args.label_smoothing, 1), 0)
 
 
-classification_loss = classification_loss = keras.losses.MeanSquaredError(
-        reduction="sum", 
-    )
+classification_loss = NormalizedMeanSquaredError(reduction="sum")
+    
 if args.loss_function == 'cce':
     classification_loss = keras.losses.CategoricalCrossentropy(
         reduction="sum",
@@ -150,9 +151,9 @@ if args.loss_function == 'sce': #This is likely wrong, since we are using one ho
         from_logits=True
     )
 if args.loss_function == 'mse':
-    classification_loss = keras.losses.MeanSquaredError(
-        reduction="sum", 
-    )
+    classification_loss = NormalizedMeanSquaredError(
+        reduction="sum"
+        )
 if args.loss_function == 'pos':
     classification_loss = keras.losses.Poisson (
         reduction="sum"
@@ -186,9 +187,9 @@ if "train" in args.mode:
                 save_weights_only=True,
                 verbose=1,
             ),
-            tf.keras.callbacks.LambdaCallback(
-                on_epoch_end=lambda epoch, logs: val_loss_history.append(logs["val_loss"])
-            ),
+            # tf.keras.callbacks.LambdaCallback(
+            #     on_epoch_end=lambda epoch, logs: val_loss_history.append(logs["val_loss"])
+            # ),
         ],
     )
     # Save the val_loss_history list as a .pkl file
@@ -205,25 +206,22 @@ if "test" in args.mode:
             detections = detector(image)
             boxes = np.asarray(detections["boxes"])
             cls_prob = np.asarray(detections["cls_prob"])
-            cls_id = []
+            cls_id =  np.asarray(detections["cls_ids"])
 
-            for distribs in cls_prob:
-                i = 0
 
-                ids = []
-                min = np.min(distribs)
-                for prob in distribs:
-                    if prob > min+.005:
-                        ids.append(i)
-                    i +=1
-                cls_id.append(ids)
-            
+
 
             cls_name = []
+            
+            i = 0
             for clses in cls_id:
                 names = []
                 for cls_n in clses:
-                    names.append(cls_list[cls_n])
+                    if (cls_n < 0 or cls_n > len(cls_list)):
+                        names.append("unknown")
+                    else:
+                        names.append(cls_list[cls_n])
+
                 cls_name.append(names)
 
             key_list = coco_ds.key_list

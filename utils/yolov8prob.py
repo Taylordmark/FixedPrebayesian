@@ -12,7 +12,7 @@ from utils.nonmaxsuppression import *
 class ProbYolov8Detector:
 
     def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_l_backbone_coco", box_format="xywh", 
-                 min_confidence=.1, max_iou=.5, nms_fn=PreSoftSumNMS, use_flipout=False) -> None:
+                 min_confidence=.1, max_iou=.5, nms_fn=DistributionNMS, use_flipout=False, min_prob_diff=0.05) -> None:
 
 
         backbone = keras_cv.models.YOLOV8Backbone.from_preset(
@@ -28,6 +28,8 @@ class ProbYolov8Detector:
             prediction_decoder=nms
         )
 
+
+        self.min_prob_diff = min_prob_diff
 
         if use_flipout:
             for layer in self.model.layers:
@@ -77,9 +79,34 @@ class ProbYolov8Detector:
         input_image, ratio = self.prepare_image(img)
         detection = self.model.predict(input_image)
 
+        cls_prob = detection['cls_prob'][0]
+
+        cls_ids = []
+ 
+        for distribs in cls_prob:
+
+            i = 0
+
+            ids = []
+            min = np.min(distribs)
+            for prob in distribs:
+                if prob > min+self.min_prob_diff:
+                    ids.append(i)
+                i +=1
+
+            
+
+            if ids == []:
+                ids.append(-1)
+            
+            cls_ids.append(ids)
+
+        print(cls_ids)
+
 
         ret = {"boxes":detection['boxes'][0],
-               "cls_prob":detection['cls_prob'][0],
+               "cls_prob":cls_prob,
+               "cls_ids":cls_ids,
                "confidence":detection['confidence'][0]}
     
 

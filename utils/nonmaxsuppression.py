@@ -192,8 +192,8 @@ class DistributionNMS(keras.layers.Layer):
             return nms_box, nms_cls, nms_conf
 
 
-        nms_box, nms_cls, nms_conf = tf.map_fn(nms, (box_prediction, class_prediction, class_confidence), dtype=(tf.float32, tf.float32), 
-            fn_output_signature=(tf.float32, tf.float32))
+        nms_box, nms_cls, nms_conf = tf.map_fn(nms, (box_prediction, class_prediction, class_confidence), dtype=(tf.float32, tf.float32, tf.float32), 
+            fn_output_signature=(tf.float32, tf.float32, tf.float32))
         
 
         output = {
