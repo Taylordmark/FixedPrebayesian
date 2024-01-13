@@ -1,0 +1,4 @@
+car,7
+truck,7
+bus,7
+motorcycle, 1
