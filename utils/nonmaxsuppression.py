@@ -259,37 +259,26 @@ class PreSoftSumNMS(keras.layers.Layer):
         #from [-inf, inf] to [0, 1] with the sum adding up to 1
 
 
-        def subtract_other_sum(x):
-            cls_pred = x
-            my_sum = tf.math.reduce_sum(cls_pred)
-
-            cls_pred = cls_pred * 2
-
-            result = tf.add(cls_pred, -my_sum)
-
-            return result
-
         def subtract_min(x):
             cls_pred = x
             my_min = tf.reduce_min(cls_pred)
-
-            cls_pred = cls_pred * 10
-
-            result = tf.add(cls_pred, -my_min)
+            cls_pred = tf.add(cls_pred, -my_min)
 
             return result
 
-        def times10_square(x):
-            cls_pred = x
-            cls_pred = cls_pred * 10
-            result = tf.math.square(cls_pred)
-
-            return result
-
-        
+        # If range is less than 10% of average ex range  is .05 and avg is 1, set all values to 1 (penalize lack of confidence)
         if self.from_logits:
-            cls_sum = tf.map_fn(times10_square, class_prediction, dtype=float, fn_output_signature=float)
-            cls_predictions = tf.nn.softmax(cls_sum)
+            cls_sum = tf.map_fn(subtract_min, class_prediction, dtype=float, fn_output_signature=float)
+
+            # Calculate range and average
+            average = tf.reduce_mean(cls_sum)
+            range_ = tf.reduce_max(cls_sum) - tf.reduce_min(cls_sum)
+
+            # Check if range is within 10% of average
+            within_10_percent = tf.less_equal(range_, 0.1 * average)
+
+            # Set values to all ones if within 10%
+            cls_predictions = tf.where(within_10_percent, tf.ones_like(cls_sum), tf.nn.softmax(cls_sum))
             
 
 
