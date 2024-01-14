@@ -40,14 +40,14 @@ parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the
 parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list_traffic.txt")
 parser.add_argument("--batch_size", "-b", type=int, default=16)
 parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
-parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="/remote_home/Thesis/Models/fixed_mse")
+parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="train", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.125, type=float)
 parser.add_argument("--min_confidence", "-c", help="min confidence", default=.5, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="class_list_traffic.txt", type=str)
 parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cce, pos", default="mse", type=str)
 parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
-parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='SoftmaxSum')
+parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='Softmax')
 
 args = parser.parse_args()
 model_dir = args.checkpoint_path
