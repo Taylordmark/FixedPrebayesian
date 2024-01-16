@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
+import os
 
 
 from PIL import Image
@@ -127,11 +128,16 @@ class CocoDSManager:
         print(f"LOADING {len(img_to_load)} IMAGES")
         for im in images:
 
-            name = self.save_pth + r"/" + im['file_name']
+            name = os.path.join(self.save_pth, im['file_name'])
+
+            if not os.path.exists(self.save_pth):
+                os.makedirs(self.save_pth)
+            
             if not os.path.isfile(name):
                 img_data = requests.get(im['coco_url']).content
                 with open(name, 'wb') as handler:
                     handler.write(img_data)
+
 
 
         split_list.append(len(bboxes))
@@ -175,7 +181,7 @@ class CocoDSManager:
 
 
         for id in ids:
-            f = path+"/"+(str(id).zfill(12))+extension
+            f = path+"\\"+(str(id).zfill(12))+extension
             #name, _ = f.replace(path, "").replace("\\", "").lstrip("0").split(".")
 
             img = cv2.resize(np.asarray(Image.open(f)), resize_size)

@@ -1,4 +1,3 @@
-import argparse
 import os
 import numpy as np
 import tensorflow as tf
@@ -24,14 +23,15 @@ tf.compat.v1.enable_eager_execution()
 #torch.cuda.empty_cache()
 
 # Hardcode paths and parameters
-checkpoint_path = r"/remote_home/Thesis/Completed_Models/Softmax_mse2"
-image_folder = r"/remote_home/Thesis/DataFiles/small_test_videos/BDD_val_b1c9c847-3bda4659"
-cls_path = r"/remote_home/Thesis/Prebayesian/class_list_traffic.txt"
-download_path = r"/remote_home/Thesis/Prebayesian/download_list_traffic.txt"
+checkpoint_path = r"C:\Users\keela\Documents\Sigmoid_Only"
+detections_path = r"C:\Users\keela\Documents\Sigmoid_Only\initial_detections.pkl"
+image_folder = r"C:\Users\keela\Documents\Video Outputs\b1c9c847-3bda4659"
+cls_path = r"C:\Users\keela\Documents\Prebayesian\class_list_traffic.txt"
+download_path = r"C:\Users\keela\Documents\Prebayesian\download_list_traffic.txt"
 loss_function = "mse"  # mse, cce, or pos
 nms_layer = 'Softmax'  # Softmax or SoftmaxSum
 min_confidence = 0.018
-label_smoothing = 0
+label_smoothing = 0.1
 
 LEARNING_RATE = 0.0001
 GLOBAL_CLIPNORM = 5
@@ -122,7 +122,7 @@ prev_max = 0
 for frame_number, frame_path in enumerate(image_files):
     checkpoint = round(frame_number / file_count * 100, 0)
     if checkpoint > prev_max:
-        print(f"{checkpoint}.2f%")
+        print(f"{checkpoint}%")
     prev_max = checkpoint
 
     frame = load_and_preprocess_image(os.path.join(image_folder, frame_path))
@@ -136,11 +136,11 @@ for frame_number, frame_path in enumerate(image_files):
     saved_probs = []
     # Get bounding boxes and class names
     for box, prob_list in zip(boxes, cls_prob):
-        cur_min = min(prob_list)
+        cur_min = np.min(prob_list)
         
         probability = max(prob_list)
         
-        if probability > cur_min * 1.0015:
+        if probability > cur_min * 1.005:
 
             chosen_class = np.argmax(prob_list)
             name = cls_list[chosen_class]
@@ -148,15 +148,15 @@ for frame_number, frame_path in enumerate(image_files):
             # Extract coordinates
             ymin, xmin, ymax, xmax = box
 
-            print(f"Index: {np.argmax(prob_list)}, Probability: {probability}")
-
             saved_boxes.append(box)
             saved_probs.append(prob_list)
     detection_results[frame_number] = {'boxes':saved_boxes, 'probabilities':saved_probs}
 
-# Specify the file path
-file_path = 'my_dict.pkl'
+
 
 # Save the dictionary to a .pkl file
-with open(file_path, 'wb') as file:
+with open(detections_path, 'wb') as file:
     pickle.dump(detection_results, file)
+    
+    
+    
