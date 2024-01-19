@@ -16,7 +16,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import pickle
 
-checkpoint_path = 'binary_crossentropy'
+checkpoint_path = 'sigmoid_only'
 min_confidence = 0.55
 cls_path = 'custom-cls.txt'
 download_path = 'download_list.txt'

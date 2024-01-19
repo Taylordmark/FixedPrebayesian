@@ -43,11 +43,12 @@ parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="test", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.125, type=float)
-parser.add_argument("--min_confidence", "-c", help="min confidence", default=.5, type=float)
+parser.add_argument("--min_confidence", "-c", help="min confidence", default=.2, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="class_list_traffic.txt", type=str)
 parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cce, pos", default="mse", type=str)
 parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
 parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='Softmax')
+parser.add_argument("--backbone_size", "-z", help="what size of yolo backbone to use, defaults to s, l also possible", default="s")
 
 args = parser.parse_args()
 model_dir = args.checkpoint_path
@@ -130,7 +131,9 @@ val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
 
 nms_fn = DistributionNMS if args.nms_layer == 'Softmax' else PreSoftSumNMS
 
-detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, nms_fn=nms_fn, backbone_name="yolo_v8_s_backbone_coco")
+
+backbone_nm = f"yolo_v8_{args.backbone_size}_backbone_coco"
+detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, nms_fn=nms_fn, backbone_name=backbone_nm, min_prob_diff=.015)
 
 #distrib_loss = tfp.experimental.nn.losses.neg
 
@@ -151,6 +154,14 @@ if args.loss_function == 'sce': #This is likely wrong, since we are using one ho
         from_logits=True
     )
 if args.loss_function == 'mse':
+    classification_loss = keras.losses.MeanSquaredError(
+        reduction="sum"
+    )
+if args.loss_function == 'mle':
+    classification_loss = keras.losses.MeanSquaredLogarithmicError(
+        reduction="sum"
+    )
+if args.loss_function == 'nme':
     classification_loss = NormalizedMeanSquaredError(
         reduction="sum"
         )
@@ -207,7 +218,7 @@ if "test" in args.mode:
             detections = detector(image)
             boxes = np.asarray(detections["boxes"])
             cls_prob = np.asarray(detections["cls_prob"])
-            cls_id =  np.asarray(detections["cls_ids"])
+            cls_id =  detections["cls_ids"]
 
 
             cls_name = []
@@ -225,7 +236,6 @@ if "test" in args.mode:
 
             key_list = coco_ds.key_list
             
-            print(cls_prob)
 
             correct_prob = []
             for i in range(len(cls_prob)):

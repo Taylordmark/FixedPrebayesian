@@ -127,11 +127,10 @@ class ProbYolov8Detector:
 
                     iou = intersect.area / union.area
 
-                    #print(f"{iou}  {cls_id[j]} {true_classes[i][k]}")
+
 
                 
                     if iou > minimum_iou and true_classes[i][k] in cls_id[j]:
-                        #print(iou)
                         valid_idx.append((j,k))
 
                         # cls_idx = cls_id[j]
@@ -206,8 +205,7 @@ class ProbYolov8Detector:
 
         ret = {"boxes":detection['boxes'][0],
                "cls_prob":cls_prob,
-               "cls_ids":cls_ids,
-               "confidence":detection['confidence'][0]}
+               "cls_ids":cls_ids}
 
 
         return ret
