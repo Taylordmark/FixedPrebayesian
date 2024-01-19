@@ -15,7 +15,7 @@ import shapely as shp
 
 class ProbYolov8Detector:
 
-    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", 
+    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_l_backbone_coco", box_format="xywh", 
                  min_confidence=.1, max_iou=.5, nms_fn=DistributionNMS, use_flipout=False, min_prob_diff=0.05) -> None:
 
 

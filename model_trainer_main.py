@@ -37,11 +37,11 @@ if gpus:
 parser = argparse.ArgumentParser(description="Model Trainer")
 parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset", default=r"C:\Users\keela\Documents\annotations\instances_train2017.json")
 parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset", default=r"C:\Users\keela\Documents\train")
-parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list_traffic.txt")
+parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list_traffic_small.txt")
 parser.add_argument("--batch_size", "-b", type=int, default=16)
 parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
-parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="train", type=str)
+parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="test", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.125, type=float)
 parser.add_argument("--min_confidence", "-c", help="min confidence", default=.5, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="class_list_traffic.txt", type=str)
@@ -197,7 +197,7 @@ if "train" in args.mode:
         pickle.dump(val_loss_history, f)
 
 if "test" in args.mode:
-    detector.load_weights(args.checkpoint_path)
+    detector.load_weights(r"C:\Users\keela\Documents\Models\Basic_BCE")
 
     for sample in coco_ds.train_ds.take(5):
         #try:
@@ -207,8 +207,6 @@ if "test" in args.mode:
             boxes = np.asarray(detections["boxes"])
             cls_prob = np.asarray(detections["cls_prob"])
             cls_id =  np.asarray(detections["cls_ids"])
-
-
 
 
             cls_name = []

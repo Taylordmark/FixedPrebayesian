@@ -26,12 +26,12 @@ tf.compat.v1.enable_eager_execution()
 
 
 
-def use_model(checkpoint_path = r"C:\Users\keela\Documents\Models\bce",\
+def use_model(checkpoint_path = r"C:\Users\keela\Documents\Models\bce\checkpoint",\
               image_folder = r"C:\Users\keela\Documents\Video Outputs\0000f77c-6257be58\frames",\
               cls_path = r"C:\Users\keela\Documents\Prebayesian\class_list_traffic.txt",\
               download_path = r"C:\Users\keela\Documents\Prebayesian\download_list_traffic.txt",\
-              loss_function = "mse"  # mse, cce, or pos,\
-              nms_layer = 'Softmax'  # Softmax or SoftmaxSum,\
+              loss_function = "mse",  # mse, cce, or pos,\
+              nms_layer = 'Softmax',  # Softmax or SoftmaxSum,\
               min_confidence = 0.018,\
               label_smoothing = 0.1,\
               LEARNING_RATE = 0.0001,\
@@ -107,7 +107,7 @@ def use_model(checkpoint_path = r"C:\Users\keela\Documents\Models\bce",\
     print("Images loaded")
 
     # Load detector Weights
-    detector.load_weights(checkpoint_path)
+    detector.load_weights(r"C:\Users\keela\Documents\Models\Old_Models\2kim.0001LR")
     print("Detector loaded")
 
     # Define a function to load and preprocess a single image
