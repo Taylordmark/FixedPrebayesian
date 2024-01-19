@@ -12,6 +12,7 @@ from utils.nonmaxsuppression import *
 from utils.visualization_functions import visualize_multimodal_detections_and_gt
 
 import shapely as shp
+import pickle
 
 class ProbYolov8Detector:
 
@@ -19,6 +20,7 @@ class ProbYolov8Detector:
                  min_confidence=.1, max_iou=.5, nms_fn=DistributionNMS, use_flipout=False, min_prob_diff=0.05) -> None:
 
 
+        self.num_classes = num_classes
         backbone = keras_cv.models.YOLOV8Backbone.from_preset(
             backbone_name # We will use yolov8 small backbone with coco weights
         )
@@ -78,21 +80,24 @@ class ProbYolov8Detector:
 
         return dets
 
-    def generate_global_data(self, test_images, truth_labels, output_name="", minimum_iou=.8, visualize=True):
+    def generate_global_data(self, test_images, truth_labels, output_name="global_data", minimum_iou=.8, visualize=True):
 
         #assert len(test_images) == len(truth_labels), "ERROR: Images and labels must be same length"
         true_boxes = []
         true_classes = []
 
-        global_data = np.zeros((len(test_images, self.num_classes)))
+        global_data = []
 
-        print(global_data)
         for true_val in truth_labels:
             true_boxes.append(np.asarray(true_val["boxes"]))
             true_classes.append(np.asarray(true_val["classes"]))
 
 
         for i in range(len(test_images)):
+
+            global_data.append({})
+            for c in range(self.num_classes):
+                global_data[i][c] = []
 
             img = test_images[i]
             detections = self.__call__(img)
@@ -128,14 +133,18 @@ class ProbYolov8Detector:
                     iou = intersect.area / union.area
 
 
+                    for c in range(self.num_classes):
+                        if c == true_classes[i][k]:
+                            global_data[i][c].append(np.asarray(cls_prob[j]))
+                        else:
+                            global_data[i][c].append(np.zeros(self.num_classes, dtype=np.float64))
+
 
                 
                     if iou > minimum_iou and true_classes[i][k] in cls_id[j]:
+
+
                         valid_idx.append((j,k))
-
-                        # cls_idx = cls_id[j]
-
-                        # global_data[cl][i] = cls_prob[i]
 
                     
 
@@ -156,10 +165,18 @@ class ProbYolov8Detector:
                 show_gts.append(true_boxes[i][k])
                 show_gtcls.append(true_classes[i][k])
 
+                for c in range(self.num_classes):
+                    global_data[i][c] = np.asarray(global_data[i][c], dtype=np.float64)
+
             if (show_trs != [] and show_gts != [] and visualize):
                 visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
                
 
+
+        print(global_data)
+
+        with open(f'{output_name}.pickle', 'wb') as handle:
+            pickle.dump(global_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
             
 
             
