@@ -137,7 +137,9 @@ class ProbYolov8Detector:
                         if c == true_classes[i][k]:
                             global_data[i][c].append(np.asarray(cls_prob[j]))
                         else:
-                            global_data[i][c].append(np.zeros(self.num_classes, dtype=np.float64))
+                            filler = np.zeros(self.num_classes, dtype=np.float64)
+                            filler[c] = 1
+                            global_data[i][c].append(filler)
 
 
                 
