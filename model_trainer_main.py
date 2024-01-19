@@ -84,7 +84,7 @@ num_classes = 80 if cls_list is None else len(cls_list)
 
 print(num_classes)
 
-coco_ds = CocoDSManager(args.json_path, args.save_path, download=do_download, 
+coco_ds = CocoDSManager(args.json_path, args.save_path, download=do_download,  
                         yxyw_percent=False, cls_list=cls_list, download_list=download_list)
 
 train_ds = coco_ds.train_ds
@@ -130,7 +130,7 @@ val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
 
 nms_fn = DistributionNMS if args.nms_layer == 'Softmax' else PreSoftSumNMS
 
-detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, nms_fn=nms_fn)
+detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, nms_fn=nms_fn, backbone_name="yolo_v8_s_backbone_coco")
 
 #distrib_loss = tfp.experimental.nn.losses.neg
 
@@ -197,7 +197,8 @@ if "train" in args.mode:
         pickle.dump(val_loss_history, f)
 
 if "test" in args.mode:
-    detector.load_weights(r"C:\Users\keela\Documents\Models\Basic_BCE")
+    #detector.load_weights(r"C:\Users\keela\Documents\Models\Basic_BCE")
+    detector.load_weights(args.checkpoint_path)
 
     for sample in coco_ds.train_ds.take(5):
         #try:

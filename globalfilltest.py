@@ -16,7 +16,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import pickle
 
-checkpoint_path = 'mean_squared_error'
+checkpoint_path = 'binary_crossentropy'
 min_confidence = 0.55
 cls_path = 'custom-cls.txt'
 download_path = 'download_list.txt'
@@ -42,15 +42,17 @@ coco_ds = CocoDSManager(json_path, save_path, download=True,
                         yxyw_percent=False, cls_list=cls_list, download_list=download_list)
 
 nms_fn = DistributionNMS 
-detector = ProbYolov8Detector(num_classes, min_confidence=min_confidence, nms_fn=nms_fn)
+detector = ProbYolov8Detector(num_classes, min_confidence=min_confidence, nms_fn=nms_fn, min_prob_diff=0.01)
+
+detector.load_weights(checkpoint_path)
 
 
 truth_data = []
 images = []
-for sample in coco_ds.train_ds.take(5):
+for sample in coco_ds.train_ds.take(10):
 
     image = tf.cast(sample["images"], dtype=tf.float32)
     images.append(image)
     truth_data.append(sample['bounding_boxes'])
 
-detector.generate_global_data(images, truth_data)
+detector.generate_global_data(images, truth_data, minimum_iou=.3)

@@ -78,9 +78,19 @@ class ProbYolov8Detector:
 
         return dets
 
-    def generate_global_data(self, test_images, truth_labels, output_name="", minimum_iou=.8):
+    def generate_global_data(self, test_images, truth_labels, output_name="", minimum_iou=.8, visualize=True):
 
         #assert len(test_images) == len(truth_labels), "ERROR: Images and labels must be same length"
+        true_boxes = []
+        true_classes = []
+
+        global_data = np.zeros((len(test_images, self.num_classes)))
+
+        print(global_data)
+        for true_val in truth_labels:
+            true_boxes.append(np.asarray(true_val["boxes"]))
+            true_classes.append(np.asarray(true_val["classes"]))
+
 
         for i in range(len(test_images)):
 
@@ -91,52 +101,49 @@ class ProbYolov8Detector:
             cls_prob = np.asarray(detections["cls_prob"])
             cls_id =  np.asarray(detections["cls_ids"])
 
-            true_boxes = []
-            true_classes = []
-
-            #print(truth_labels)
-
-
-            for true_val in truth_labels:
-                #print(true_val)
-                true_boxes.append(true_val["boxes"])
-                true_classes.append(true_val["classes"])
-
-
-            #print(boxes)
-            #print(true_boxes)
             valid_idx = []
 
-            #print(boxes)
+
             for j in range(len(boxes)):
                 box = boxes[j]
 
                 dt_box:shp.box = shp.box(box[0], box[1], box[0]+box[2], box[1]+box[3])
     
 
-                for k in range(len(true_boxes)):
+                for k in range(len(true_boxes[i])):
 
-                    tox = true_boxes[k]
-                    #print(tox)
+
+
+                    tox = true_boxes[i][k]
+
                     tr_box = shp.box(tox[0], tox[1], tox[0]+tox[2], tox[1]+tox[3])
 
 
-                    #print(tr_box)
-
                     intersect:shp.Polygon = shp.intersection(dt_box, tr_box)
-                    union:shp.MultiPolygon = shp.union(dt_box, tr_box)
+                    union = shp.union(dt_box, tr_box)
 
                     if intersect.is_empty:
                         continue
 
                     iou = intersect.area / union.area
 
-                    if iou > minimum_iou:
+                    #print(f"{iou}  {cls_id[j]} {true_classes[i][k]}")
+
+                
+                    if iou > minimum_iou and true_classes[i][k] in cls_id[j]:
+                        #print(iou)
                         valid_idx.append((j,k))
+
+                        # cls_idx = cls_id[j]
+
+                        # global_data[cl][i] = cls_prob[i]
+
+                    
 
             show_trs = []
             show_trcls = []
             show_prob = []
+
 
             show_gts =[]
             show_gtcls = []
@@ -147,10 +154,13 @@ class ProbYolov8Detector:
                 show_trcls.append(cls_id[j])
                 show_prob.append(cls_prob[j])
 
-                show_gts.append(true_boxes[k])
-                show_gtcls.append(true_classes[k])
+                show_gts.append(true_boxes[i][k])
+                show_gtcls.append(true_classes[i][k])
 
-            visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
+            for h in range(len())
+
+            if (show_trs != [] and show_gts != [] and visualize):
+                visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
                
 
             
@@ -172,8 +182,17 @@ class ProbYolov8Detector:
             i = 0
 
             ids = []
+
+            
+
             min = np.min(distribs)
+
+
+
+
             for prob in distribs:
+
+                #print(f"{prob} > {min} + {self.min_prob_diff} = {min+self.min_prob_diff}")
                 if prob > min+self.min_prob_diff:
                     ids.append(i)
                 i +=1
