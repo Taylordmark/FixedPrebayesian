@@ -16,6 +16,11 @@ import tensorflow_probability as tfp
 from utils.yolov8prob import ProbYolov8Detector
 from utils.visualization_functions import visualize_multimodal_detections_and_gt
 
+from keras_cv.losses.ciou_loss import CIoULoss
+import pickle
+
+from utils.normalizedmseloss import NormalizedMeanSquaredError
+
 tf.keras.backend.clear_session()
 tf.compat.v1.enable_eager_execution()
 
@@ -38,11 +43,11 @@ parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default="yolo")
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="train", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.125, type=float)
-parser.add_argument("--min_confidence", "-c", help="min confidence", default=.05, type=float)
+parser.add_argument("--min_confidence", "-c", help="min confidence", default=.5, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="class_list_traffic.txt", type=str)
 parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cce, pos", default="mse", type=str)
 parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
-parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='SoftmaxSum')
+parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='Softmax')
 
 args = parser.parse_args()
 model_dir = args.checkpoint_path
@@ -131,15 +136,24 @@ detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, n
 
 label_smooth = max(min(args.label_smoothing, 1), 0)
 
-classification_loss = classification_loss = keras.losses.MeanSquaredError(
-        reduction="sum", 
-    )
+
+classification_loss = NormalizedMeanSquaredError(reduction="sum")
+    
 if args.loss_function == 'cce':
     classification_loss = keras.losses.CategoricalCrossentropy(
         reduction="sum",
         from_logits=True,
         label_smoothing=label_smooth
     )
+if args.loss_function == 'sce': #This is likely wrong, since we are using one hot encoded labels
+    classification_loss = keras.losses.SparseCategoricalCrossentropy (
+        reduction="sum",
+        from_logits=True
+    )
+if args.loss_function == 'mse':
+    classification_loss = NormalizedMeanSquaredError(
+        reduction="sum"
+        )
 if args.loss_function == 'pos':
     classification_loss = keras.losses.Poisson (
         reduction="sum"
@@ -150,8 +164,10 @@ optimizer = tf.keras.optimizers.Adam(
     global_clipnorm=GLOBAL_CLIPNORM,
 )
 
+box_loss = CIoULoss(bounding_box_format="xywh", reduction="sum")
+
 detector.model.compile(
-    optimizer=optimizer, classification_loss=classification_loss, box_loss="ciou", jit_compile=False,
+    optimizer=optimizer, classification_loss=classification_loss, box_loss=box_loss, jit_compile=False,
     box_loss_weight=10,
     classification_loss_weight=5,
 )
@@ -171,9 +187,9 @@ if "train" in args.mode:
                 save_weights_only=True,
                 verbose=1,
             ),
-            tf.keras.callbacks.LambdaCallback(
-                on_epoch_end=lambda epoch, logs: val_loss_history.append(logs["val_loss"])
-            ),
+            # tf.keras.callbacks.LambdaCallback(
+            #     on_epoch_end=lambda epoch, logs: val_loss_history.append(logs["val_loss"])
+            # ),
         ],
     )
     # Save the val_loss_history list as a .pkl file
@@ -190,25 +206,22 @@ if "test" in args.mode:
             detections = detector(image)
             boxes = np.asarray(detections["boxes"])
             cls_prob = np.asarray(detections["cls_prob"])
-            cls_id = []
+            cls_id =  np.asarray(detections["cls_ids"])
 
-            for distribs in cls_prob:
-                i = 0
 
-                ids = []
-                min = np.min(distribs)
-                for prob in distribs:
-                    if prob > min+.005:
-                        ids.append(i)
-                    i +=1
-                cls_id.append(ids)
-            
+
 
             cls_name = []
+            
+            i = 0
             for clses in cls_id:
                 names = []
                 for cls_n in clses:
-                    names.append(cls_list[cls_n])
+                    if (cls_n < 0 or cls_n > len(cls_list)):
+                        names.append("unknown")
+                    else:
+                        names.append(cls_list[cls_n])
+
                 cls_name.append(names)
 
             key_list = coco_ds.key_list
@@ -228,10 +241,11 @@ if "test" in args.mode:
             # visualize_dataset(image, sample["bounding_boxes"]["boxes"][:3], sample["bounding_boxes"]["classes"][:3])
             # visualize_detections(image, boxes[0], cls_id[0], cls_prob[0])
 
-            print(sample["bounding_boxes"]["boxes"])
+            # print(sample["bounding_boxes"]["boxes"])
 
-            print("VS")
-            print(boxes)
+            # print("VS")
+            # print(boxes)
+
 
             visualize_multimodal_detections_and_gt(image, boxes, cls_name, correct_prob,
                                         sample["bounding_boxes"]["boxes"], gt_name)

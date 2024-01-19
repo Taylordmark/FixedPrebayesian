@@ -23,3 +23,5 @@ softmax_sum
 mean_squared_error
 categorical_crossentropy
 binary_crossentropy
+download_list.txt
+custom-cls.txt

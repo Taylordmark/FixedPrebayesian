@@ -110,7 +110,7 @@ class DistributionNMS(keras.layers.Layer):
         from_logits,
         iou_threshold=0.5,
         confidence_threshold=0.5,
-        max_detections=100,
+        max_detections=1000,
         max_detections_per_class=100,
         **kwargs,
     ):
@@ -148,13 +148,18 @@ class DistributionNMS(keras.layers.Layer):
             image_shape=image_shape,
         )
 
-        cls_predictions = class_prediction
         #from [-inf, inf] to [0, 1] with the sum adding up to 1
 
 
+        #tf.print(tf.reduce_max(class_prediction, axis=2))
         
         if self.from_logits:
-            cls_predictions:tf.Tensor = ops.softmax(class_prediction)
+            class_confidence = ops.max(ops.sigmoid(class_prediction), axis=-1)
+            class_prediction:tf.Tensor = ops.softmax(class_prediction)
+
+
+        
+        #tf.print(tf.reduce_max(class_confidence))
 
 
         def nms(x):
@@ -164,11 +169,12 @@ class DistributionNMS(keras.layers.Layer):
 
             box = x[0]
             cls_pred = x[1]
+            cls_conf = x[2]
 
             #determines indices to keep
             idx = tf.image.non_max_suppression(
                 box,
-                tf.reduce_max(cls_pred, axis=1),
+                cls_conf,
                 self.max_detections,
                 self.iou_threshold,
                 self.confidence_threshold,
@@ -178,19 +184,22 @@ class DistributionNMS(keras.layers.Layer):
             #only keeps indices in idx
             nms_box = tf.gather(box, idx)
             nms_cls = tf.gather(cls_pred, idx)
+            nms_conf = tf.gather(cls_conf, idx)
+
 
             #cls_distrib = self.distrib_fn(logits=nms_cls)
 
-            return nms_box, nms_cls
+            return nms_box, nms_cls, nms_conf
 
 
-        nms_box, nms_cls = tf.map_fn(nms, (box_prediction, cls_predictions), dtype=(tf.float32, tf.float32), 
-            fn_output_signature=(tf.float32, tf.float32))
+        nms_box, nms_cls, nms_conf = tf.map_fn(nms, (box_prediction, class_prediction, class_confidence), dtype=(tf.float32, tf.float32, tf.float32), 
+            fn_output_signature=(tf.float32, tf.float32, tf.float32))
         
 
         output = {
             "boxes": nms_box,
             "cls_prob": nms_cls,
+            "confidence": nms_conf
         }
 
 
@@ -250,37 +259,26 @@ class PreSoftSumNMS(keras.layers.Layer):
         #from [-inf, inf] to [0, 1] with the sum adding up to 1
 
 
-        def subtract_other_sum(x):
-            cls_pred = x
-            my_sum = tf.math.reduce_sum(cls_pred)
-
-            cls_pred = cls_pred * 2
-
-            result = tf.add(cls_pred, -my_sum)
-
-            return result
-
         def subtract_min(x):
             cls_pred = x
             my_min = tf.reduce_min(cls_pred)
-
-            cls_pred = cls_pred * 10
-
-            result = tf.add(cls_pred, -my_min)
+            cls_pred = tf.add(cls_pred, -my_min)
 
             return result
 
-        def times10_square(x):
-            cls_pred = x
-            cls_pred = cls_pred * 10
-            result = tf.math.square(cls_pred)
-
-            return result
-
-        
+        # If range is less than 10% of average ex range  is .05 and avg is 1, set all values to 1 (penalize lack of confidence)
         if self.from_logits:
-            cls_sum = tf.map_fn(times10_square, class_prediction, dtype=float, fn_output_signature=float)
-            cls_predictions = tf.nn.softmax(cls_sum)
+            cls_sum = tf.map_fn(subtract_min, class_prediction, dtype=float, fn_output_signature=float)
+
+            # Calculate range and average
+            average = tf.reduce_mean(cls_sum)
+            range_ = tf.reduce_max(cls_sum) - tf.reduce_min(cls_sum)
+
+            # Check if range is within 10% of average
+            within_10_percent = tf.less_equal(range_, 0.1 * average)
+
+            # Set values to all ones if within 10%
+            cls_predictions = tf.where(within_10_percent, tf.ones_like(cls_sum), tf.nn.softmax(cls_sum))
             
 
 
