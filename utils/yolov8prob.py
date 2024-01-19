@@ -157,8 +157,6 @@ class ProbYolov8Detector:
                 show_gts.append(true_boxes[i][k])
                 show_gtcls.append(true_classes[i][k])
 
-            for h in range(len())
-
             if (show_trs != [] and show_gts != [] and visualize):
                 visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
                
