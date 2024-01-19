@@ -80,21 +80,42 @@ class ProbYolov8Detector:
 
         return dets
 
-    def generate_global_data(self, test_images, truth_labels, output_name="global_data", minimum_iou=.8, visualize=True):
+    
+    def generate_global_data(self, test_images, truth_labels, output_name="global_data", minimum_iou=.8, visualize=True, output_file=True):
+        """
+        Generates a global data array based on the model, test images, and labels
 
-        #assert len(test_images) == len(truth_labels), "ERROR: Images and labels must be same length"
+        test_images: list of images, np format
+        truth_labels: list of dictionaries for each image, dictionary seperates into ["boxes"] and ["classes"]
+        output_name: name pickle is saved as, extension not needed
+        minimum_iou: currently unused, besides for visualization
+        visualize: whether to show visuals or not
+        output_file: whether to save result to pickle or not
+
+        returns: list of dictionaries, with each dictionary being global data for a different frame
+
+        """
+
         true_boxes = []
         true_classes = []
 
+
+        #global data saves a separate dictionary for each frame
         global_data = []
 
+
+        #loads true data, did it this way due to weird errors I was getting
         for true_val in truth_labels:
             true_boxes.append(np.asarray(true_val["boxes"]))
             true_classes.append(np.asarray(true_val["classes"]))
 
 
+        
         for i in range(len(test_images)):
+            #repeats for each test image provided
 
+
+            #initializes new global data dictionary
             global_data.append({})
             for c in range(self.num_classes):
                 global_data[i][c] = []
@@ -109,12 +130,14 @@ class ProbYolov8Detector:
             valid_idx = []
 
 
+            #for each detection from the model
             for j in range(len(boxes)):
                 box = boxes[j]
 
                 dt_box:shp.box = shp.box(box[0], box[1], box[0]+box[2], box[1]+box[3])
     
 
+                #for each real box
                 for k in range(len(true_boxes[i])):
 
 
@@ -124,12 +147,15 @@ class ProbYolov8Detector:
                     tr_box = shp.box(tox[0], tox[1], tox[0]+tox[2], tox[1]+tox[3])
 
 
+                    #currently, the iou does very little, as it saves all detections
                     intersect:shp.Polygon = shp.intersection(dt_box, tr_box)
                     union = shp.union(dt_box, tr_box)
 
                     if intersect.is_empty:
                         continue
 
+
+                    
                     iou = intersect.area / union.area
 
 
@@ -158,6 +184,7 @@ class ProbYolov8Detector:
             show_gts =[]
             show_gtcls = []
 
+            
             for pair in valid_idx:
                 j, k = pair
                 show_trs.append(boxes[j])
@@ -167,6 +194,7 @@ class ProbYolov8Detector:
                 show_gts.append(true_boxes[i][k])
                 show_gtcls.append(true_classes[i][k])
 
+                #make data NP arrays
                 for c in range(self.num_classes):
                     global_data[i][c] = np.asarray(global_data[i][c], dtype=np.float64)
 
@@ -174,11 +202,11 @@ class ProbYolov8Detector:
                 visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
                
 
+        if (output_file and output_name != ""):
+            with open(f'{output_name}.pickle', 'wb') as handle:
+                pickle.dump(global_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        print(global_data)
-
-        with open(f'{output_name}.pickle', 'wb') as handle:
-            pickle.dump(global_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        return global_data
             
 
             
