@@ -9,9 +9,13 @@ import keras_cv
 from utils.yolo_utils import *
 from utils.nonmaxsuppression import *
 
+from utils.visualization_functions import visualize_multimodal_detections_and_gt
+
+import shapely as shp
+
 class ProbYolov8Detector:
 
-    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_l_backbone_coco", box_format="xywh", 
+    def __init__(self, num_classes=80, fpn_depth=3, backbone_name="yolo_v8_s_backbone_coco", box_format="xywh", 
                  min_confidence=.1, max_iou=.5, nms_fn=DistributionNMS, use_flipout=False, min_prob_diff=0.05) -> None:
 
 
@@ -74,6 +78,86 @@ class ProbYolov8Detector:
 
         return dets
 
+    def generate_global_data(self, test_images, truth_labels, output_name="", minimum_iou=.8):
+
+        #assert len(test_images) == len(truth_labels), "ERROR: Images and labels must be same length"
+
+        for i in range(len(test_images)):
+
+            img = test_images[i]
+            detections = self.__call__(img)
+
+            boxes = np.asarray(detections["boxes"])
+            cls_prob = np.asarray(detections["cls_prob"])
+            cls_id =  np.asarray(detections["cls_ids"])
+
+            true_boxes = []
+            true_classes = []
+
+            #print(truth_labels)
+
+
+            for true_val in truth_labels:
+                #print(true_val)
+                true_boxes.append(true_val["boxes"])
+                true_classes.append(true_val["classes"])
+
+
+            #print(boxes)
+            #print(true_boxes)
+            valid_idx = []
+
+            #print(boxes)
+            for j in range(len(boxes)):
+                box = boxes[j]
+
+                dt_box:shp.box = shp.box(box[0], box[1], box[0]+box[2], box[1]+box[3])
+    
+
+                for k in range(len(true_boxes)):
+
+                    tox = true_boxes[k]
+                    #print(tox)
+                    tr_box = shp.box(tox[0], tox[1], tox[0]+tox[2], tox[1]+tox[3])
+
+
+                    #print(tr_box)
+
+                    intersect:shp.Polygon = shp.intersection(dt_box, tr_box)
+                    union:shp.MultiPolygon = shp.union(dt_box, tr_box)
+
+                    if intersect.is_empty:
+                        continue
+
+                    iou = intersect.area / union.area
+
+                    if iou > minimum_iou:
+                        valid_idx.append((j,k))
+
+            show_trs = []
+            show_trcls = []
+            show_prob = []
+
+            show_gts =[]
+            show_gtcls = []
+
+            for pair in valid_idx:
+                j, k = pair
+                show_trs.append(boxes[j])
+                show_trcls.append(cls_id[j])
+                show_prob.append(cls_prob[j])
+
+                show_gts.append(true_boxes[k])
+                show_gtcls.append(true_classes[k])
+
+            visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
+               
+
+            
+
+            
+
+
     def __call__(self, image) -> Any:
         img = tf.cast(image, dtype=tf.float32)
         input_image, ratio = self.prepare_image(img)
@@ -102,10 +186,11 @@ class ProbYolov8Detector:
             cls_ids.append(ids)
 
 
+
         ret = {"boxes":detection['boxes'][0],
                "cls_prob":cls_prob,
                "cls_ids":cls_ids,
                "confidence":detection['confidence'][0]}
-    
+
 
         return ret
