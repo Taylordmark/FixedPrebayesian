@@ -100,8 +100,11 @@ class ProbYolov8Detector:
         true_classes = []
 
 
-        #global data saves a separate dictionary for each frame
-        global_data = []
+        #initializes new global data dictionary
+        global_data = {}
+        for c in range(self.num_classes+1):
+            global_data[c] = []
+
 
 
         #loads true data, did it this way due to weird errors I was getting
@@ -114,11 +117,6 @@ class ProbYolov8Detector:
         for i in range(len(test_images)):
             #repeats for each test image provided
 
-
-            #initializes new global data dictionary
-            global_data.append({})
-            for c in range(self.num_classes):
-                global_data[i][c] = []
 
             img = test_images[i]
             detections = self.__call__(img)
@@ -159,20 +157,26 @@ class ProbYolov8Detector:
                     iou = intersect.area / union.area
 
 
-                    for c in range(self.num_classes):
-                        if c == true_classes[i][k]:
-                            global_data[i][c].append(np.asarray(cls_prob[j]))
-                        else:
-                            filler = np.zeros(self.num_classes, dtype=np.float64)
-                            filler[c] = 1
-                            global_data[i][c].append(filler)
-
-
-                
                     if iou > minimum_iou and true_classes[i][k] in cls_id[j]:
 
-
                         valid_idx.append((j,k))
+
+                        for c in range(self.num_classes+1):
+                            if c == true_classes[i][k]:
+                                global_data[c].append(np.asarray(cls_prob[j]))
+                            else:
+                                filler = np.zeros(self.num_classes, dtype=np.float64)
+                                idx = c if c < 1 else c -1
+                                filler[idx] = 1
+                                global_data[c].append(filler)
+                    else:
+                        global_data[0].append(np.asarray(cls_prob[j]))
+                        for c in range(self.num_classes+1):
+                            idx = c if c < 1 else c -1
+                            filler = np.zeros(self.num_classes, dtype=np.float64)
+                            filler[idx] = 1
+                            global_data[c].append(filler)
+
 
                     
 
@@ -194,13 +198,15 @@ class ProbYolov8Detector:
                 show_gts.append(true_boxes[i][k])
                 show_gtcls.append(true_classes[i][k])
 
-                #make data NP arrays
-                for c in range(self.num_classes):
-                    global_data[i][c] = np.asarray(global_data[i][c], dtype=np.float64)
 
             if (show_trs != [] and show_gts != [] and visualize):
                 visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
                
+        #make data NP arrays
+        for c in range(self.num_classes+1):
+            global_data[c] = np.asarray(global_data[c], dtype=np.float64)
+
+        print(global_data)
 
         if (output_file and output_name != ""):
             with open(f'{output_name}.pickle', 'wb') as handle:
