@@ -1,4 +1,9 @@
-car,7
-truck,7
-bus,7
-motorcycle, 1
+bus, 10
+car, 10
+truck, 10
+motorcycle, 10
+traffic light, 10
+street sign, 10
+stop sign, 10
+parking meter, 10
+bench, 10
