@@ -25,3 +25,5 @@ categorical_crossentropy
 binary_crossentropy
 download_list.txt
 custom-cls.txt
+sigmoid_only
+global_data.pickle
