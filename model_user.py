@@ -18,9 +18,6 @@ from utils.visualization_functions import visualize_multimodal_detections_and_gt
 
 from keras_cv.losses.ciou_loss import CIoULoss
 import pickle
-import torchvision.transforms as transforms
-
-
 
 from utils.normalizedmseloss import NormalizedMeanSquaredError
 
@@ -45,22 +42,20 @@ parser.add_argument("--batch_size", "-b", type=int, default=16)
 parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
 parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default=r"C:\Users\keela\Documents\Models\Basic_CCE")
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="test", type=str)
-parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
-parser.add_argument("--min_confidence", "-c", help="min confidence", default=.5001, type=float)
+parser.add_argument("--max_iou", "-i", help="max iou", default=.125, type=float)
+parser.add_argument("--min_confidence", "-c", help="min confidence", default=.2, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="class_list_traffic.txt", type=str)
 parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cce, pos", default="mse", type=str)
 parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
 parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='Softmax')
+parser.add_argument("--backbone_size", "-z", help="what size of yolo backbone to use, defaults to s, l also possible", default="s")
+
+test_image_folder = r"C:\Users\keela\Documents\Video Outputs\b1c9c847-3bda4659"
 
 args = parser.parse_args()
 model_dir = args.checkpoint_path
 batch_size = args.batch_size
 do_download = args.download_path != "False"
-
-
-# Specify the path to the folder containing test images
-test_image_folder = r"C:\Users\keela\Documents\Video Outputs\b1c9c847-3bda4659"
-
 
 LEARNING_RATE = 0.00015
 GLOBAL_CLIPNORM = 5
@@ -85,21 +80,9 @@ else:
             split = line.replace("\n", "").split(",")
             download_list[split[0]]=split[1]
 
-print(download_list)
 
 #The detector will only be the length of the class list
 num_classes = 80 if cls_list is None else len(cls_list)
-
-print(num_classes)
-
-coco_ds = CocoDSManager(args.json_path, args.save_path, download=do_download,  
-                        yxyw_percent=False, cls_list=cls_list, download_list=download_list)
-
-train_ds = coco_ds.train_ds
-val_ds = coco_ds.val_ds
-
-print("TRAIN DATA LENGTH")
-print(len(list(train_ds)))
 
 augmenter = keras.Sequential(
     layers=[
@@ -113,9 +96,6 @@ augmenter = keras.Sequential(
     ]
 )
 
-train_ds = train_ds.shuffle(batch_size * 4)
-train_ds = train_ds.ragged_batch(batch_size, drop_remainder=True)
-train_ds = train_ds.map(augmenter, num_parallel_calls=tf.data.AUTOTUNE)
 
 resizing = keras_cv.layers.JitteredResize(
     target_size=(640, 640),
@@ -123,23 +103,15 @@ resizing = keras_cv.layers.JitteredResize(
     bounding_box_format="xywh",
 )
 
-val_ds = val_ds.shuffle(batch_size * 4)
-val_ds = val_ds.ragged_batch(batch_size, drop_remainder=True)
-val_ds = val_ds.map(resizing, num_parallel_calls=tf.data.AUTOTUNE)
 
 def dict_to_tuple(inputs):
     return inputs["images"], inputs["bounding_boxes"]
 
-train_ds = train_ds.map(dict_to_tuple, num_parallel_calls=tf.data.AUTOTUNE)
-train_ds = train_ds.prefetch(tf.data.AUTOTUNE)
-
-val_ds = val_ds.map(dict_to_tuple, num_parallel_calls=tf.data.AUTOTUNE)
-val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
 
 nms_fn = DistributionNMS if args.nms_layer == 'Softmax' else PreSoftSumNMS
 
-detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, nms_fn=nms_fn, \
-                              backbone_name="yolo_v8_s_backbone_coco")
+backbone_nm = f"yolo_v8_{args.backbone_size}_backbone_coco"
+detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, nms_fn=nms_fn, backbone_name=backbone_nm, min_prob_diff=.015)
 
 #distrib_loss = tfp.experimental.nn.losses.neg
 
@@ -160,6 +132,14 @@ if args.loss_function == 'sce': #This is likely wrong, since we are using one ho
         from_logits=True
     )
 if args.loss_function == 'mse':
+    classification_loss = keras.losses.MeanSquaredError(
+        reduction="sum"
+    )
+if args.loss_function == 'mle':
+    classification_loss = keras.losses.MeanSquaredLogarithmicError(
+        reduction="sum"
+    )
+if args.loss_function == 'nme':
     classification_loss = NormalizedMeanSquaredError(
         reduction="sum"
         )
@@ -181,17 +161,21 @@ detector.model.compile(
     classification_loss_weight=5,
 )
 
-val_loss_history = []  # Create an empty list to store val losses
-
 
 detector.load_weights(args.checkpoint_path)
 
 
 # Get a list of image files in the folder
 image_files = [f for f in sorted(os.listdir(test_image_folder)) if f.lower().endswith(".png")]
+total_files = len(image_files)
+prev_checkpoint = 0
 
 detections_dict = {}
 for frame_num, image_file in enumerate(image_files):
+    progress = float(f"{frame_num / total_files}:.1f")
+    if progress > prev_checkpoint:
+        prev_checkpoint = progress
+        print(f"{prev_checkpoint}:.2f")
     # Construct the full path to the image
     image_path = os.path.join(test_image_folder, image_file)
     tensor_image = tf.keras.utils.load_img(image_path)
@@ -201,47 +185,11 @@ for frame_num, image_file in enumerate(image_files):
     detections = detector(reshaped_tensor)
     boxes = np.asarray(detections["boxes"])
     cls_prob = np.asarray(detections["cls_prob"])
-    cls_id = detections["cls_ids"]
 
-    # Process the results as needed
-    cls_name = []
-    for clses in cls_id:
-        names = []
-        for cls_n in clses:
-            if cls_n < 0 or cls_n > len(cls_list):
-                names.append("unknown")
-            else:
-                names.append(cls_list[cls_n])
-        cls_name.append(names)
+    detections_dict[frame_num] = {'boxes': boxes, 'probabilities': cls_prob}
 
-    correct_prob = []
-    for i in range(len(cls_prob)):
-        probs = []
-        for ids in cls_id[i]:
-            probs.append(cls_prob[i][ids])
-        correct_prob.append(probs)
+pickle_path = os.path.join(args.checkpoint_path, 'initial_detections.pkl')
+with open(pickle_path, 'wb') as pkl:
+    pickle.dump(detections_dict, pkl)
     
-    # Plot the detections on the original image
-    plt.figure(figsize=(10, 10))
-    plt.imshow(tensor_image)
-    
-    # Get the image dimensions
-    image_width, image_height = tensor_image.size
-    
-    # Set x and y limits to match the image size
-    plt.xlim([0, image_width])
-    plt.ylim([image_height, 0])
       
-    for i in range(len(boxes)):
-        box = boxes[i]
-        x_center, y_center, width, height = box
-        xmin = int(x_center - width / 2)
-        ymin = int(y_center - height / 2)
-        xmax = int(xmin + width)
-        ymax = int(ymin + height)
-        color = 'red'  # Adjust color as needed
-        thickness = 2
-        plt.plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color=color, linewidth=thickness)
-    
-    plt.title(f"Detections on {image_file}")
-    plt.show()
