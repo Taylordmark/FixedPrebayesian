@@ -1,170 +1,247 @@
-import os
-import numpy as np
+import argparse
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.preprocessing.image import img_to_array, load_img
+import numpy as np
+from utils.coco_dataset_manager import *
+import os
 from tqdm.auto import tqdm
 import xml.etree.ElementTree as ET
-import tensorflow_probability as tfp
-from utils.coco_dataset_manager import *
+import tensorflow as tf
+from tensorflow import keras
+import keras_cv
 from utils.yolo_utils import *
 from utils.custom_retinanet import prepare_image
 from utils.nonmaxsuppression import *
 from utils.negloglikely import nll
+import tensorflow_probability as tfp
 from utils.yolov8prob import ProbYolov8Detector
-from PIL import Image
-import matplotlib.pyplot as plt
-import pickle
+from utils.visualization_functions import visualize_multimodal_detections_and_gt
 
-#import torch
+from keras_cv.losses.ciou_loss import CIoULoss
+import pickle
+import torchvision.transforms as transforms
+
+
+
+from utils.normalizedmseloss import NormalizedMeanSquaredError
 
 tf.keras.backend.clear_session()
 tf.compat.v1.enable_eager_execution()
-#torch.cuda.empty_cache()
 
-# Hardcode paths and parameters
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logical_gpus = tf.config.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs," , len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+        print(e)
+
+parser = argparse.ArgumentParser(description="Model Trainer")
+parser.add_argument("--json_path", "-j", type=str, help="Path of the coco annotation used to download the dataset", default=r"C:\Users\keela\Documents\annotations\instances_train2017.json")
+parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the downloaded dataset", default=r"C:\Users\keela\Documents\train")
+parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list_traffic_small.txt")
+parser.add_argument("--batch_size", "-b", type=int, default=16)
+parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
+parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default=r"C:\Users\keela\Documents\Models\Basic_CCE")
+parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="test", type=str)
+parser.add_argument("--max_iou", "-i", help="max iou", default=.2, type=float)
+parser.add_argument("--min_confidence", "-c", help="min confidence", default=.5001, type=float)
+parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="class_list_traffic.txt", type=str)
+parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cce, pos", default="mse", type=str)
+parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
+parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='Softmax')
+
+args = parser.parse_args()
+model_dir = args.checkpoint_path
+batch_size = args.batch_size
+do_download = args.download_path != "False"
 
 
+# Specify the path to the folder containing test images
+test_image_folder = r"C:\Users\keela\Documents\Video Outputs\b1c9c847-3bda4659"
 
-def use_model(checkpoint_path = r"C:\Users\keela\Documents\Models\bce\checkpoint",\
-              image_folder = r"C:\Users\keela\Documents\Video Outputs\0000f77c-6257be58\frames",\
-              cls_path = r"C:\Users\keela\Documents\Prebayesian\class_list_traffic.txt",\
-              download_path = r"C:\Users\keela\Documents\Prebayesian\download_list_traffic.txt",\
-              loss_function = "mse",  # mse, cce, or pos,\
-              nms_layer = 'Softmax',  # Softmax or SoftmaxSum,\
-              min_confidence = 0.018,\
-              label_smoothing = 0.1,\
-              LEARNING_RATE = 0.0001,\
-              GLOBAL_CLIPNORM = 5):
-    
-    detections_path = os.path.join(checkpoint_path, "initial_detections.pkl")
-    # Load the class lists from text; if not specified, it gets all 80 classes
+
+LEARNING_RATE = 0.00015
+GLOBAL_CLIPNORM = 5
+
+
+#Load the class lists from text, if not specified, it gets all 80 classes
+if (args.cls_path == ""):
     cls_list = None
-    if cls_path:
-        with open(cls_path) as f:
-            cls_list = [cls.strip() for cls in f.readlines()]
+else:
+    with open(args.cls_path) as f:
+        cls_list = f.readlines()
+        cls_list = [cls.replace("\n", "") for cls in cls_list]
+print(cls_list)
 
-    print(cls_list)
-
+if (args.download_path == "" or args.download_path == "False"):
     download_list = None
-    if download_path and download_path != "False":
-        with open(download_path) as f:
-            download_lines = f.readlines()
-            download_list = {line.split(",")[0]: line.split(",")[1].strip() for line in download_lines}
+else:
+    with open(args.download_path) as f:
+        download_lines = f.readlines()
+        download_list = {}
+        for line in download_lines:
+            split = line.replace("\n", "").split(",")
+            download_list[split[0]]=split[1]
 
-    print(download_list)
+print(download_list)
 
-    # The detector will only be the length of the class list
-    num_classes = 80 if cls_list is None else len(cls_list)
+#The detector will only be the length of the class list
+num_classes = 80 if cls_list is None else len(cls_list)
 
-    print(num_classes)
+print(num_classes)
 
-    # Augmenter and resizing
-    augmenter = keras.Sequential(
-        layers=[
-            keras_cv.layers.RandomFlip(mode="horizontal", bounding_box_format="xywh"),
-            keras_cv.layers.RandomShear(x_factor=0.2, y_factor=0.2, bounding_box_format="xywh"),
-            keras_cv.layers.JitteredResize(target_size=(640, 640), scale_factor=(0.75, 1.3), bounding_box_format="xywh"),
-        ]
-    )
-    resizing = keras_cv.layers.JitteredResize(
-        target_size=(640, 640), scale_factor=(0.75, 1.3), bounding_box_format="xywh"
-    )
+coco_ds = CocoDSManager(args.json_path, args.save_path, download=do_download,  
+                        yxyw_percent=False, cls_list=cls_list, download_list=download_list)
 
-    # Function to convert dictionary inputs to tuple
-    def dict_to_tuple(inputs):
-        return inputs["images"], inputs["bounding_boxes"]
+train_ds = coco_ds.train_ds
+val_ds = coco_ds.val_ds
 
-    # NMS function
-    nms_fn = DistributionNMS if nms_layer == 'Softmax' else PreSoftSumNMS
-    detector = ProbYolov8Detector(num_classes, min_confidence=min_confidence, nms_fn=nms_fn)
-    label_smooth = max(min(label_smoothing, 1), 0)
-    classification_loss = keras.losses.MeanSquaredError(
+print("TRAIN DATA LENGTH")
+print(len(list(train_ds)))
+
+augmenter = keras.Sequential(
+    layers=[
+        keras_cv.layers.RandomFlip(mode="horizontal", bounding_box_format="xywh"),
+        keras_cv.layers.RandomShear(
+            x_factor=0.2, y_factor=0.2, bounding_box_format="xywh"
+        ),
+        keras_cv.layers.JitteredResize(
+            target_size=(640, 640), scale_factor=(0.75, 1.3), bounding_box_format="xywh"
+        ),
+    ]
+)
+
+train_ds = train_ds.shuffle(batch_size * 4)
+train_ds = train_ds.ragged_batch(batch_size, drop_remainder=True)
+train_ds = train_ds.map(augmenter, num_parallel_calls=tf.data.AUTOTUNE)
+
+resizing = keras_cv.layers.JitteredResize(
+    target_size=(640, 640),
+    scale_factor=(0.75, 1.3),
+    bounding_box_format="xywh",
+)
+
+val_ds = val_ds.shuffle(batch_size * 4)
+val_ds = val_ds.ragged_batch(batch_size, drop_remainder=True)
+val_ds = val_ds.map(resizing, num_parallel_calls=tf.data.AUTOTUNE)
+
+def dict_to_tuple(inputs):
+    return inputs["images"], inputs["bounding_boxes"]
+
+train_ds = train_ds.map(dict_to_tuple, num_parallel_calls=tf.data.AUTOTUNE)
+train_ds = train_ds.prefetch(tf.data.AUTOTUNE)
+
+val_ds = val_ds.map(dict_to_tuple, num_parallel_calls=tf.data.AUTOTUNE)
+val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
+
+nms_fn = DistributionNMS if args.nms_layer == 'Softmax' else PreSoftSumNMS
+
+detector = ProbYolov8Detector(num_classes, min_confidence=args.min_confidence, nms_fn=nms_fn, \
+                              backbone_name="yolo_v8_s_backbone_coco")
+
+#distrib_loss = tfp.experimental.nn.losses.neg
+
+label_smooth = max(min(args.label_smoothing, 1), 0)
+
+
+classification_loss = NormalizedMeanSquaredError(reduction="sum")
+    
+if args.loss_function == 'cce':
+    classification_loss = keras.losses.CategoricalCrossentropy(
         reduction="sum",
+        from_logits=True,
+        label_smoothing=label_smooth
     )
-    if loss_function == 'cce':
-        classification_loss = keras.losses.CategoricalCrossentropy(
-            reduction="sum", from_logits=True, label_smoothing=label_smooth
+if args.loss_function == 'sce': #This is likely wrong, since we are using one hot encoded labels
+    classification_loss = keras.losses.SparseCategoricalCrossentropy (
+        reduction="sum",
+        from_logits=True
+    )
+if args.loss_function == 'mse':
+    classification_loss = NormalizedMeanSquaredError(
+        reduction="sum"
         )
-    if loss_function == 'pos':
-        classification_loss = keras.losses.Poisson(
-            reduction="sum"
-        )
-
-    optimizer = tf.keras.optimizers.Adam(
-        learning_rate=LEARNING_RATE, global_clipnorm=GLOBAL_CLIPNORM,
-    )
-    detector.model.compile(
-        optimizer=optimizer, classification_loss=classification_loss, box_loss="ciou", jit_compile=False,
-        box_loss_weight=7.5,
-        classification_loss_weight=0.5,
+if args.loss_function == 'pos':
+    classification_loss = keras.losses.Poisson (
+        reduction="sum"
     )
 
-    print("Loading images...")
-    # Get a list of all image files in the folder
-    image_files = [f for f in os.listdir(image_folder) if f.endswith(('.jpg', '.jpeg', '.png'))]
-    file_count = len(image_files)
-    print("Images loaded")
+optimizer = tf.keras.optimizers.Adam(
+    learning_rate=LEARNING_RATE,
+    global_clipnorm=GLOBAL_CLIPNORM,
+)
 
-    # Load detector Weights
-    detector.load_weights(r"C:\Users\keela\Documents\Models\Old_Models\2kim.0001LR")
-    print("Detector loaded")
+box_loss = CIoULoss(bounding_box_format="xywh", reduction="sum")
 
-    # Define a function to load and preprocess a single image
-    def load_and_preprocess_image(img_path):
-        img = load_img(img_path, target_size=(640, 640))
-        img_array = img_to_array(img)
-        img_tensor = tf.convert_to_tensor(img_array, dtype=tf.float32) / 255.0
-        return img_tensor
+detector.model.compile(
+    optimizer=optimizer, classification_loss=classification_loss, box_loss=box_loss, jit_compile=False,
+    box_loss_weight=10,
+    classification_loss_weight=5,
+)
 
-    # Assuming detector, cls_list, and image_files are defined in your code
-    detection_results = {}
-    prev_max = 0
-
-    for frame_number, frame_path in enumerate(image_files):
-        checkpoint = round(frame_number / file_count * 100, 0)
-        if checkpoint > prev_max:
-            print(f"{checkpoint}%")
-        prev_max = checkpoint
-
-        frame = load_and_preprocess_image(os.path.join(image_folder, frame_path))
-
-        # Perform object detection
-        detections = detector(frame)
-        boxes = np.asarray(detections["boxes"])
-        cls_prob = np.asarray(detections["cls_prob"])
-
-        saved_boxes = []
-        saved_probs = []
-
-        counter = 0
-        # Get bounding box and class names
-        for box, prob_list in zip(boxes, cls_prob):
-            cur_min = np.min(prob_list)
-            
-            probability = max(prob_list)
-            
-            
-            if probability > cur_min * 1.17:
-                print(f"Margin: {probability / cur_min}")
-                counter += 1
-                chosen_class = np.argmax(prob_list)
-                name = cls_list[chosen_class]
-
-                # Extract coordinates
-                ymin, xmin, ymax, xmax = box
-
-                saved_boxes.append(box)
-                saved_probs.append(prob_list)
-        print(counter)
-        detection_results[frame_number] = {'boxes':saved_boxes, 'probabilities':saved_probs}
+val_loss_history = []  # Create an empty list to store val losses
 
 
+detector.load_weights(args.checkpoint_path)
 
-    # Save the dictionary to a .pkl file
-    with open(detections_path, 'wb') as file:
-        pickle.dump(detection_results, file)
+
+# Get a list of image files in the folder
+image_files = [f for f in sorted(os.listdir(test_image_folder)) if f.lower().endswith(".png")]
+
+detections_dict = {}
+for frame_num, image_file in enumerate(image_files):
+    # Construct the full path to the image
+    image_path = os.path.join(test_image_folder, image_file)
+    tensor_image = tf.keras.utils.load_img(image_path)
+    reshaped_tensor = tf.image.resize(tensor_image, size=(640, 640))
+
+    # Run the detector on the image
+    detections = detector(reshaped_tensor)
+    boxes = np.asarray(detections["boxes"])
+    cls_prob = np.asarray(detections["cls_prob"])
+    cls_id = detections["cls_ids"]
+
+    # Process the results as needed
+    cls_name = []
+    for clses in cls_id:
+        names = []
+        for cls_n in clses:
+            if cls_n < 0 or cls_n > len(cls_list):
+                names.append("unknown")
+            else:
+                names.append(cls_list[cls_n])
+        cls_name.append(names)
+
+    correct_prob = []
+    for i in range(len(cls_prob)):
+        probs = []
+        for ids in cls_id[i]:
+            probs.append(cls_prob[i][ids])
+        correct_prob.append(probs)
     
-if __name__ == '__main__':
-    use_model()
+    # Plot the detections on the original image
+    plt.figure(figsize=(10, 10))
+    plt.imshow(tensor_image)
     
+    # Get the image dimensions
+    image_width, image_height = tensor_image.size
+    
+    # Set x and y limits to match the image size
+    plt.xlim([0, image_width])
+    plt.ylim([image_height, 0])
+      
+    for i in range(len(boxes)):
+        box = boxes[i]
+        x_center, y_center, width, height = box
+        xmin = int(x_center - width / 2)
+        ymin = int(y_center - height / 2)
+        xmax = int(xmin + width)
+        ymax = int(ymin + height)
+        color = 'red'  # Adjust color as needed
+        thickness = 2
+        plt.plot([xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin], color=color, linewidth=thickness)
+    
+    plt.title(f"Detections on {image_file}")
+    plt.show()
