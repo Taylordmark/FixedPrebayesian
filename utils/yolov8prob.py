@@ -101,9 +101,8 @@ class ProbYolov8Detector:
 
 
         #initializes new global data dictionary
-        global_data[-1] = []
         global_data = {}
-        for c in range(self.num_classes):
+        for c in range(self.num_classes+1):
             global_data[c] = []
 
 
@@ -158,20 +157,26 @@ class ProbYolov8Detector:
                     iou = intersect.area / union.area
 
 
-                    for c in range(self.num_classes):
-                        if c == true_classes[i][k]:
-                            global_data[c].append(np.asarray(cls_prob[j]))
-                        else:
-                            filler = np.zeros(self.num_classes, dtype=np.float64)
-                            filler[c] = 1
-                            global_data[c].append(filler)
-
-
-                
                     if iou > minimum_iou and true_classes[i][k] in cls_id[j]:
 
-
                         valid_idx.append((j,k))
+
+                        for c in range(self.num_classes+1):
+                            if c == true_classes[i][k]:
+                                global_data[c].append(np.asarray(cls_prob[j]))
+                            else:
+                                filler = np.zeros(self.num_classes, dtype=np.float64)
+                                idx = c if c < 1 else c -1
+                                filler[idx] = 1
+                                global_data[c].append(filler)
+                    else:
+                        global_data[0].append(np.asarray(cls_prob[j]))
+                        for c in range(self.num_classes+1):
+                            idx = c if c < 1 else c -1
+                            filler = np.zeros(self.num_classes, dtype=np.float64)
+                            filler[idx] = 1
+                            global_data[c].append(filler)
+
 
                     
 
@@ -198,7 +203,7 @@ class ProbYolov8Detector:
                 visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
                
         #make data NP arrays
-        for c in range(self.num_classes):
+        for c in range(self.num_classes+1):
             global_data[c] = np.asarray(global_data[c], dtype=np.float64)
 
         print(global_data)
