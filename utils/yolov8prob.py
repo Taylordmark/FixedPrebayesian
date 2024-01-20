@@ -123,7 +123,7 @@ class ProbYolov8Detector:
 
             boxes = np.asarray(detections["boxes"])
             cls_prob = np.asarray(detections["cls_prob"])
-            cls_id =  np.asarray(detections["cls_ids"])
+            cls_id =  detections["cls_ids"]
 
             valid_idx = []
 

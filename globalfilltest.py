@@ -73,4 +73,4 @@ SavePath = os.path.join(checkpoint_path, "global_data.pkl")
 
 # Save the dictionary to a .pkl file
 with open(SavePath, 'wb') as file:
-    pickle.dump(all_predictions, file)
+    pickle.dump(global_data, file)
