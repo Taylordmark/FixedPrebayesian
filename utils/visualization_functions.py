@@ -46,7 +46,7 @@ def visualize_multimodal_detections_and_gt(
     
     linewidth=1, color=[0, 0, 1],
 
-    linewidth_gt=1, color_gt=[0, 1, 0]
+    linewidth_gt=1, color_gt=[0, 1, 0], block=True
 ):
     """Visualize Detections"""
     image = np.array(image, dtype=np.uint8)
@@ -89,6 +89,6 @@ def visualize_multimodal_detections_and_gt(
             clip_box=ax.clipbox,
             clip_on=True,
         )
-    plt.show()
+    plt.show(block=block)
     return ax
 

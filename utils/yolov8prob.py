@@ -21,6 +21,7 @@ class ProbYolov8Detector:
 
 
         self.num_classes = num_classes
+        self.max_iou = max_iou
         backbone = keras_cv.models.YOLOV8Backbone.from_preset(
             backbone_name # We will use yolov8 small backbone with coco weights
         )
@@ -100,6 +101,8 @@ class ProbYolov8Detector:
         true_classes = []
 
 
+
+
         #initializes new global data dictionary
         global_data = {}
         for c in range(-1, self.num_classes):
@@ -117,15 +120,19 @@ class ProbYolov8Detector:
         for i in range(len(test_images)):
             #repeats for each test image provided
 
+            valid_idx = []
+
 
             img = test_images[i]
             detections = self.__call__(img)
 
             boxes = np.asarray(detections["boxes"])
-            cls_prob = np.asarray(detections["cls_prob"])
-            cls_id =  np.asarray(detections["cls_ids"])
 
-            valid_idx = []
+
+
+            cls_prob = np.asarray(detections["cls_prob"])
+            cls_id =  detections["cls_ids"]
+
 
 
             #for each detection from the model
@@ -159,6 +166,7 @@ class ProbYolov8Detector:
 
                     if iou > minimum_iou and true_classes[i][k] in cls_id[j]:
 
+                        
                         valid_idx.append((j,k))
                         global_data[true_classes[i][k]].append(np.asarray(cls_prob[j]))
                     else:
@@ -187,7 +195,8 @@ class ProbYolov8Detector:
                 show_gtcls.append(true_classes[i][k])
 
 
-            if (show_trs != [] and show_gts != [] and visualize):
+            if (show_trs != [] and show_gts != [] and visualize or True):
+                visualize_multimodal_detections_and_gt(img, boxes, cls_id, cls_prob, true_boxes[i], true_classes[i], block=False)
                 visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
                
         #make data NP arrays
@@ -199,7 +208,6 @@ class ProbYolov8Detector:
                 global_data[c].append(filler)
             global_data[c] = np.asarray(global_data[c], dtype=np.float64)
 
-        print(global_data)
 
         if (output_file and output_name != ""):
             with open(f'{output_name}.pickle', 'wb') as handle:
@@ -216,11 +224,48 @@ class ProbYolov8Detector:
         input_image, ratio = self.prepare_image(img)
         detection = self.model.predict(input_image)
 
+
+        boxes = detection['boxes'][0]
+        delete_idx = []
         cls_prob = detection['cls_prob'][0]
+
+        for i in range(len(boxes)):
+
+            box = boxes[i]
+            sBox = shp.box(box[0], box[1], box[0]+box[2], box[1]+ box[3])
+            for j in range(len(boxes)):
+
+                if i == j:
+                    continue
+
+                box2 = boxes[j]
+
+                sBox2 = shp.box(box2[0], box2[1], box2[0]+box2[2], box2[1]+ box2[3])
+
+                intersect:shp.Polygon = shp.intersection(sBox, sBox2)
+                union = shp.union(sBox, sBox2)
+
+                if intersect.is_empty:
+                    continue
+                
+                iou = intersect.area / union.area
+
+                if iou > self.max_iou:
+                    if np.argmax(cls_prob[i]) == np.argmax(cls_prob[j]):
+
+                        if (np.max(cls_prob[i]) < np.max(cls_prob[j])):
+                            delete_idx.append(i)
+
+
+        vBox = np.delete(boxes, delete_idx, axis=0)
+        vProb = np.delete(cls_prob, delete_idx, axis = 0)
+
+
+        
 
         cls_ids = []
  
-        for distribs in cls_prob:
+        for distribs in vProb:
 
             i = 0
 
@@ -249,9 +294,11 @@ class ProbYolov8Detector:
 
 
 
-        ret = {"boxes":detection['boxes'][0],
-               "cls_prob":cls_prob,
+        ret = {"boxes":vBox,
+               "cls_prob":vProb,
                "cls_ids":cls_ids}
+        
+        #print(ret)
 
 
         return ret
