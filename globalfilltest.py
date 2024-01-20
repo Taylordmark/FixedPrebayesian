@@ -16,6 +16,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import pickle
 
+
 checkpoint_path = 'mean_squared_error'
 min_confidence = 0.1
 min_iou = .3
@@ -23,6 +24,15 @@ cls_path = 'custom-cls.txt'
 download_path = 'download_list.txt'
 save_path = 'train'
 json_path = r'C:\Users\nloftus\Documents\Datasets\coco_2017_annotations\instances_train2017.json'
+
+
+checkpoint_path = r"C:\Users\keela\Documents\Models\Basic_CCE"
+min_confidence = 0.1
+min_iou = .3
+cls_path = r"C:\Users\keela\Documents\Prebayesian\class_list_traffic.txt"
+download_path = r"C:\Users\keela\Documents\Prebayesian\download_list_traffic_small.txt"
+save_path = r"C:\Users\keela\Documents\train"
+json_path = r"C:\Users\keela\Documents\annotations\instances_train2017.json"
 
 
 
@@ -56,4 +66,4 @@ for sample in coco_ds.train_ds.take(10):
     images.append(image)
     truth_data.append(sample['bounding_boxes'])
 
-detector.generate_global_data(images, truth_data, minimum_iou=min_iou)
+global_data = detector.generate_global_data(images, truth_data, minimum_iou=min_iou)
