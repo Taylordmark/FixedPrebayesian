@@ -60,10 +60,17 @@ detector.load_weights(checkpoint_path)
 
 truth_data = []
 images = []
-for sample in coco_ds.train_ds.take(10):
+for sample in coco_ds.train_ds.take(80):
 
     image = tf.cast(sample["images"], dtype=tf.float32)
     images.append(image)
     truth_data.append(sample['bounding_boxes'])
 
 global_data = detector.generate_global_data(images, truth_data, minimum_iou=min_iou)
+
+
+SavePath = os.path.join(checkpoint_path, "global_data.pkl")
+
+# Save the dictionary to a .pkl file
+with open(SavePath, 'wb') as file:
+    pickle.dump(all_predictions, file)
