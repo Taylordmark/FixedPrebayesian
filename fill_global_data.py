@@ -37,156 +37,6 @@ LEARNING_RATE = 0.0001
 GLOBAL_CLIPNORM = 5
 
 
-# Load the class lists from text; if not specified, it gets all 80 classes
-cls_list = None
-if cls_path:
-    with open(cls_path) as f:
-        cls_list = [cls.strip() for cls in f.readlines()]
-
-download_list = None
-if download_path and download_path != "False":
-    with open(download_path) as f:
-        download_lines = f.readlines()
-        download_list = {line.split(",")[0]: line.split(",")[1].strip() for line in download_lines}
-
-# The detector will only be the length of the class list
-num_classes = 80 if cls_list is None else len(cls_list)
-
-# Augmenter and resizing
-augmenter = keras.Sequential(
-    layers=[
-        keras_cv.layers.RandomFlip(mode="horizontal", bounding_box_format="xywh"),
-        keras_cv.layers.RandomShear(x_factor=0.2, y_factor=0.2, bounding_box_format="xywh"),
-        keras_cv.layers.JitteredResize(target_size=(640, 640), scale_factor=(0.75, 1.3), bounding_box_format="xywh"),
-    ]
-)
-resizing = keras_cv.layers.JitteredResize(
-    target_size=(640, 640), scale_factor=(0.75, 1.3), bounding_box_format="xywh"
-)
-
-# Function to convert dictionary inputs to tuple
-def dict_to_tuple(inputs):
-    return inputs["images"], inputs["bounding_boxes"]
-
-# NMS function
-nms_fn = DistributionNMS if nms_layer == 'Softmax' else PreSoftSumNMS
-detector = ProbYolov8Detector(num_classes, min_confidence=min_confidence, nms_fn=nms_fn)
-label_smooth = max(min(label_smoothing, 1), 0)
-classification_loss = keras.losses.MeanSquaredError(
-    reduction="sum",
-)
-if loss_function == 'cce':
-    classification_loss = keras.losses.CategoricalCrossentropy(
-        reduction="sum", from_logits=True, label_smoothing=label_smooth
-    )
-if loss_function == 'pos':
-    classification_loss = keras.losses.Poisson(
-        reduction="sum"
-    )
-
-optimizer = tf.keras.optimizers.Adam(
-    learning_rate=LEARNING_RATE, global_clipnorm=GLOBAL_CLIPNORM,
-)
-detector.model.compile(
-    optimizer=optimizer, classification_loss=classification_loss, box_loss="ciou", jit_compile=False,
-    box_loss_weight=7.5,
-    classification_loss_weight=5,
-)
-
-print("Loading images...")
-# Get a list of all image files in the folder
-image_files = [f for f in os.listdir(image_folder) if f.endswith(('.jpg', '.jpeg', '.png'))]
-file_count = len(image_files)
-print("Images loaded")
-
-# Load detector Weights
-detector.load_weights(checkpoint_path)
-print("Detector loaded")
-
-# Define a function to load and preprocess a single image
-def load_and_preprocess_image(img_path):
-    img = load_img(img_path, target_size=(640, 640))
-    img_array = img_to_array(img)
-    img_tensor = tf.convert_to_tensor(img_array, dtype=tf.float32) / 255.0
-    return img_tensor
-
-# Assuming detector, cls_list, and image_files are defined in your code
-detection_results = {}
-prev_max = 0
-
-detector.load_weights(args.checkpoint_path)
-
-for sample in coco_ds.train_ds.take(5):
-    image = tf.cast(sample["images"], dtype=tf.float32)
-
-    detections = detector(image)
-    boxes = np.asarray(detections["boxes"])
-    cls_prob = np.asarray(detections["cls_prob"])
-    cls_id = []
-
-    for distribs in cls_prob:
-        i = 0
-        ids = []
-        min = np.min(distribs)
-        for prob in distribs:
-            if prob > min+.005:
-                ids.append(i)
-            i +=1
-        cls_id.append(ids)
-    
-
-    cls_name = []
-    for clses in cls_id:
-        names = []
-        for cls_n in clses:
-            names.append(cls_list[cls_n])
-        cls_name.append(names)
-
-    key_list = coco_ds.key_list
-    
-    print(cls_prob)
-
-    correct_prob = []
-    for i in range(len(cls_prob)):
-
-        probs = []
-        for ids in cls_id[i]:
-            probs.append(cls_prob[i][ids])
-        correct_prob.append(probs)
-    
-    gt_name = [coco_ds.coco.cats[key_list[int(x)]]['name'] for x in np.asarray(sample["bounding_boxes"]["classes"])]
-            
-    # visualize_dataset(image, sample["bounding_boxes"]["boxes"][:3], sample["bounding_boxes"]["classes"][:3])
-    # visualize_detections(image, boxes[0], cls_id[0], cls_prob[0])
-
-    print(sample["bounding_boxes"]["boxes"])
-
-    print("VS")
-    print(boxes)
-
-    visualize_multimodal_detections_and_gt(image, boxes, cls_name, correct_prob,
-                                sample["bounding_boxes"]["boxes"], gt_name)
-
-
-# Checks if any dict values are > 30, returns True or False
-
-def all_values_length_gt_0(data_dict):
-    """
-    Checks if all values in the dictionary are np arrays with no elements between 0 and 30 (exclusive).
-
-    Args:
-        data_dict: A dictionary where values are np arrays.
-
-    Returns:
-        True if all values have no elements > 30, False otherwise.
-    """
-    for value in data_dict.values():
-        if len(value) > 30:
-            return False
-        else:
-            return True
-
-
 # Calculates and returns all global distribution parameters
 def global_parameterize(data_dict):
     """
@@ -248,6 +98,156 @@ def local_parameterize(history):
         col_parameters.append([a, b, loc, scale])
 
     return col_parameters
+
+# Function to convert dictionary inputs to tuple
+def dict_to_tuple(inputs):
+    return inputs["images"], inputs["bounding_boxes"]
+
+# Define a function to load and preprocess a single image
+def load_and_preprocess_image(img_path):
+    img = load_img(img_path, target_size=(640, 640))
+    img_array = img_to_array(img)
+    img_tensor = tf.convert_to_tensor(img_array, dtype=tf.float32) / 255.0
+    return img_tensor
+
+# Checks if any dict values are > 30, returns True or False
+def all_values_length_gt_0(data_dict):
+    """
+    Checks if all values in the dictionary are np arrays with no elements between 0 and 30 (exclusive).
+
+    Args:
+        data_dict: A dictionary where values are np arrays.
+
+    Returns:
+        True if all values have no elements > 30, False otherwise.
+    """
+    for value in data_dict.values():
+        if len(value) > 30:
+            return False
+        else:
+            return True
+
+
+# Load the class lists from text; if not specified, it gets all 80 classes
+cls_list = None
+if cls_path:
+    with open(cls_path) as f:
+        cls_list = [cls.strip() for cls in f.readlines()]
+
+download_list = None
+if download_path and download_path != "False":
+    with open(download_path) as f:
+        download_lines = f.readlines()
+        download_list = {line.split(",")[0]: line.split(",")[1].strip() for line in download_lines}
+
+# The detector will only be the length of the class list
+num_classes = 80 if cls_list is None else len(cls_list)
+
+# Augmenter and resizing
+augmenter = keras.Sequential(
+    layers=[
+        keras_cv.layers.RandomFlip(mode="horizontal", bounding_box_format="xywh"),
+        keras_cv.layers.RandomShear(x_factor=0.2, y_factor=0.2, bounding_box_format="xywh"),
+        keras_cv.layers.JitteredResize(target_size=(640, 640), scale_factor=(0.75, 1.3), bounding_box_format="xywh"),
+    ]
+)
+resizing = keras_cv.layers.JitteredResize(
+    target_size=(640, 640), scale_factor=(0.75, 1.3), bounding_box_format="xywh"
+)
+
+
+# NMS function
+nms_fn = DistributionNMS if nms_layer == 'Softmax' else PreSoftSumNMS
+detector = ProbYolov8Detector(num_classes, min_confidence=min_confidence, nms_fn=nms_fn)
+label_smooth = max(min(label_smoothing, 1), 0)
+classification_loss = keras.losses.MeanSquaredError(
+    reduction="sum",
+)
+if loss_function == 'cce':
+    classification_loss = keras.losses.CategoricalCrossentropy(
+        reduction="sum", from_logits=True, label_smoothing=label_smooth
+    )
+if loss_function == 'pos':
+    classification_loss = keras.losses.Poisson(
+        reduction="sum"
+    )
+
+optimizer = tf.keras.optimizers.Adam(
+    learning_rate=LEARNING_RATE, global_clipnorm=GLOBAL_CLIPNORM,
+)
+detector.model.compile(
+    optimizer=optimizer, classification_loss=classification_loss, box_loss="ciou", jit_compile=False,
+    box_loss_weight=7.5,
+    classification_loss_weight=5,
+)
+
+print("Loading images...")
+# Get a list of all image files in the folder
+image_files = [f for f in os.listdir(image_folder) if f.endswith(('.jpg', '.jpeg', '.png'))]
+file_count = len(image_files)
+print("Images loaded")
+
+# Load detector Weights
+detector.load_weights(checkpoint_path)
+print("Detector loaded")
+
+
+# Assuming detector, cls_list, and image_files are defined in your code
+detection_results = {}
+prev_max = 0
+
+detector.load_weights(args.checkpoint_path)
+
+for sample in coco_ds.train_ds.take(5):
+    image = tf.cast(sample["images"], dtype=tf.float32)
+
+    detections = detector(image)
+    boxes = np.asarray(detections["boxes"])
+    cls_prob = np.asarray(detections["cls_prob"])
+    cls_id = []
+
+    for distribs in cls_prob:
+        i = 0
+        ids = []
+        min = np.min(distribs)
+        for prob in distribs:
+            if prob > min+.005:
+                ids.append(i)
+            i +=1
+        cls_id.append(ids)
+    
+
+    cls_name = []
+    for clses in cls_id:
+        names = []
+        for cls_n in clses:
+            names.append(cls_list[cls_n])
+        cls_name.append(names)
+
+    key_list = coco_ds.key_list
+    
+    print(cls_prob)
+
+    correct_prob = []
+    for i in range(len(cls_prob)):
+
+        probs = []
+        for ids in cls_id[i]:
+            probs.append(cls_prob[i][ids])
+        correct_prob.append(probs)
+    
+    gt_name = [coco_ds.coco.cats[key_list[int(x)]]['name'] for x in np.asarray(sample["bounding_boxes"]["classes"])]
+            
+    # visualize_dataset(image, sample["bounding_boxes"]["boxes"][:3], sample["bounding_boxes"]["classes"][:3])
+    # visualize_detections(image, boxes[0], cls_id[0], cls_prob[0])
+
+    print(sample["bounding_boxes"]["boxes"])
+
+    print("VS")
+    print(boxes)
+
+    visualize_multimodal_detections_and_gt(image, boxes, cls_name, correct_prob,
+                                sample["bounding_boxes"]["boxes"], gt_name)
 
 
 print("Filling globals")
