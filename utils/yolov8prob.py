@@ -160,22 +160,10 @@ class ProbYolov8Detector:
                     if iou > minimum_iou and true_classes[i][k] in cls_id[j]:
 
                         valid_idx.append((j,k))
-
-                        for c in range(self.num_classes+1):
-                            if c == true_classes[i][k]:
-                                global_data[c].append(np.asarray(cls_prob[j]))
-                            else:
-                                filler = np.zeros(self.num_classes, dtype=np.float64)
-                                idx = c if c < 1 else c -1
-                                filler[idx] = 1
-                                global_data[c].append(filler)
+                        global_data[true_classes[i][k]+1].append(np.asarray(cls_prob[j]))
                     else:
                         global_data[0].append(np.asarray(cls_prob[j]))
-                        for c in range(self.num_classes+1):
-                            idx = c if c < 1 else c -1
-                            filler = np.zeros(self.num_classes, dtype=np.float64)
-                            filler[idx] = 1
-                            global_data[c].append(filler)
+    
 
 
                     
@@ -204,6 +192,11 @@ class ProbYolov8Detector:
                
         #make data NP arrays
         for c in range(self.num_classes+1):
+            if (global_data[c] == []):
+                filler = np.zeros(self.num_classes, dtype=np.float64)
+                idx = c if c < 1 else c -1
+                filler[idx] = 1
+                global_data[c].append(filler)
             global_data[c] = np.asarray(global_data[c], dtype=np.float64)
 
         print(global_data)
