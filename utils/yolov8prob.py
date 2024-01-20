@@ -102,7 +102,7 @@ class ProbYolov8Detector:
 
         #initializes new global data dictionary
         global_data = {}
-        for c in range(self.num_classes+1):
+        for c in range(-1, self.num_classes):
             global_data[c] = []
 
 
@@ -160,9 +160,9 @@ class ProbYolov8Detector:
                     if iou > minimum_iou and true_classes[i][k] in cls_id[j]:
 
                         valid_idx.append((j,k))
-                        global_data[true_classes[i][k]+1].append(np.asarray(cls_prob[j]))
+                        global_data[true_classes[i][k]].append(np.asarray(cls_prob[j]))
                     else:
-                        global_data[0].append(np.asarray(cls_prob[j]))
+                        global_data[-1].append(np.asarray(cls_prob[j]))
     
 
 
@@ -191,10 +191,10 @@ class ProbYolov8Detector:
                 visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
                
         #make data NP arrays
-        for c in range(self.num_classes+1):
+        for c in range(-1, self.num_classes):
             if (global_data[c] == []):
                 filler = np.zeros(self.num_classes, dtype=np.float64)
-                idx = c if c < 1 else c -1
+                idx = 0 if c < 0 else c
                 filler[idx] = 1
                 global_data[c].append(filler)
             global_data[c] = np.asarray(global_data[c], dtype=np.float64)
