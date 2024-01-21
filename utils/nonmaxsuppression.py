@@ -70,6 +70,11 @@ class PreBayesianNMS(keras.layers.Layer):
             box = x[0]
             cls_pred = x[1]
 
+            # Change to regular YOLO by using argmax for probs
+            # Create the desired array using tf.where for single-dimensional case:
+            cls_pred = tf.where(tf.equal(cls_pred, tf.reduce_max(cls_pred)), 1.0, 0.0)
+
+
             #determines indices to keep
             idx = tf.image.non_max_suppression(
                 box,
