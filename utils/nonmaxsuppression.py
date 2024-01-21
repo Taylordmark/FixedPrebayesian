@@ -262,20 +262,6 @@ class PreSoftSumNMS(keras.layers.Layer):
 
             return result
 
-        # If range is less than 10% of average ex range  is .05 and avg is 1, set all values to 1 (penalize lack of confidence)
-        if self.from_logits:
-            cls_sum = tf.map_fn(subtract_min, class_prediction, dtype=float, fn_output_signature=float)
-
-            # Calculate range and average
-            average = tf.reduce_mean(cls_sum)
-            range_ = tf.reduce_max(cls_sum) - tf.reduce_min(cls_sum)
-
-            # Check if range is within 10% of average
-            within_10_percent = tf.less_equal(range_, 0.1 * average)
-
-            # Set values to all ones if within 10%
-            cls_predictions = tf.where(within_10_percent, tf.ones_like(cls_sum), tf.nn.softmax(cls_sum))
-            
 
 
         def nms(x):
