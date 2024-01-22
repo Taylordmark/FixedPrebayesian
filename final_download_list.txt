@@ -1,0 +1,13 @@
+person, 1000
+bicycle, 1000
+car, 1000
+motorcycle, 1000
+airplane, 1000
+bus, 1000
+train, 1000
+truck, 1000
+traffic light, 1000
+fire hydrant, 1000
+stop sign, 1000
+parking meter, 1000
+bench, 1000

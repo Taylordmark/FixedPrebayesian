@@ -27,3 +27,4 @@ download_list.txt
 custom-cls.txt
 sigmoid_only
 mean_log_error
+*.pyc

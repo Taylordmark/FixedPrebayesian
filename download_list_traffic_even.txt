@@ -1,0 +1,9 @@
+bus, 200
+car, 200
+truck, 200
+motorcycle, 200
+traffic light, 200
+street sign, 200
+stop sign, 200
+parking meter, 200
+bench, 200

@@ -81,7 +81,7 @@ class ProbYolov8Detector:
         return dets
 
     
-    def generate_global_data(self, test_images, truth_labels, output_name="global_data", minimum_iou=.8, visualize=True, output_file=True):
+    def generate_global_data(self, test_images, truth_labels, output_name="global_data", minimum_iou=.8, visualize=True, output_file=True, min_confidence=.15):
         """
         Generates a global data array based on the model, test images, and labels
 
@@ -198,8 +198,6 @@ class ProbYolov8Detector:
                 filler[idx] = 1
                 global_data[c].append(filler)
             global_data[c] = np.asarray(global_data[c], dtype=np.float64)
-
-        print(global_data)
 
         if (output_file and output_name != ""):
             with open(f'{output_name}.pickle', 'wb') as handle:

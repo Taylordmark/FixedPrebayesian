@@ -26,11 +26,11 @@ save_path = 'train'
 json_path = r'C:\Users\nloftus\Documents\Datasets\coco_2017_annotations\instances_train2017.json'
 
 
-checkpoint_path = r"C:\Users\keela\Documents\Models\Basic_CCE"
-min_confidence = 0.1
-min_iou = .3
+checkpoint_path = r"C:\Users\keela\Documents\Models\LastMinuteRuns\Small_MLE"
+min_confidence = 0.13
+min_iou = .2
 cls_path = r"C:\Users\keela\Documents\Prebayesian\class_list_traffic.txt"
-download_path = r"C:\Users\keela\Documents\Prebayesian\download_list_traffic_small.txt"
+download_path = r"C:\Users\keela\Documents\Prebayesian\download_list_traffic_even.txt"
 save_path = r"C:\Users\keela\Documents\train"
 json_path = r"C:\Users\keela\Documents\annotations\instances_train2017.json"
 

@@ -40,17 +40,17 @@ parser.add_argument("--save_path", "-s", type=str, help="Path to save \ load the
 parser.add_argument("--download_path", "-d", type=str, help="Whether to download the dataset images or not", default="download_list_traffic_small.txt")
 parser.add_argument("--batch_size", "-b", type=int, default=16)
 parser.add_argument("--epochs", "-e", help="number of epochs", default=500, type=int)
-parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default=r"C:\Users\keela\Documents\Models\Basic_CCE")
+parser.add_argument("--checkpoint_path", "-p", help="path to save checkpoint", default=r"C:\Users\keela\Documents\Models\LastMinuteRuns\Small_MLE")
 parser.add_argument("--mode", "-m", help="enter train, test, or traintest to do both", default="test", type=str)
 parser.add_argument("--max_iou", "-i", help="max iou", default=.125, type=float)
-parser.add_argument("--min_confidence", "-c", help="min confidence", default=.25, type=float)
+parser.add_argument("--min_confidence", "-c", help="min confidence", default=.13, type=float)
 parser.add_argument("--cls_path", "-l", help="path to line seperated class file", default="class_list_traffic.txt", type=str)
 parser.add_argument("--loss_function", "-x", help="loss function to use, mse, cce, pos", default="mse", type=str)
 parser.add_argument("--label_smoothing", "-o", help="label smoothing for categorical and binary crossentropy losses, ranges from (0, 1)", default=0, type=float)
 parser.add_argument("--nms_layer", "-n", help="Which nms layer to use, currently 'Softmax' and 'SoftmaxSum'", type=str, default='Softmax')
 parser.add_argument("--backbone_size", "-z", help="what size of yolo backbone to use, defaults to s, l also possible", default="s")
 
-test_image_folder = r"C:\Users\keela\Documents\Video Outputs\b1c9c847-3bda4659"
+test_image_folder = r"C:\Users\keela\Documents\Videos\train1\005cdef0-180a776c"
 
 args = parser.parse_args()
 model_dir = args.checkpoint_path
@@ -166,7 +166,7 @@ detector.load_weights(args.checkpoint_path)
 
 
 # Get a list of image files in the folder
-image_files = [f for f in sorted(os.listdir(test_image_folder)) if f.lower().endswith(".png")]
+image_files = [f for f in sorted(os.listdir(test_image_folder)) if f.lower().endswith(".jpg")]
 
 detections_dict = {}
 for frame_num, image_file in enumerate(image_files):
