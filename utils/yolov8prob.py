@@ -179,6 +179,7 @@ class ProbYolov8Detector:
             show_trs = []
             show_trcls = []
             show_prob = []
+            show_raw = []
 
 
             show_gts =[]
@@ -193,9 +194,13 @@ class ProbYolov8Detector:
 
                 show_gts.append(true_boxes[i][k])
                 show_gtcls.append(true_classes[i][k])
+                show_raw.append(detections["raw_logits"][j])
 
 
             if (show_trs != [] and show_gts != [] and visualize or True):
+
+                print(show_prob)
+                print(show_raw)
                 visualize_multimodal_detections_and_gt(img, boxes, cls_id, cls_prob, true_boxes[i], true_classes[i], block=False)
                 visualize_multimodal_detections_and_gt(img, show_trs, show_trcls, show_prob, show_gts, show_gtcls)
                
@@ -227,6 +232,7 @@ class ProbYolov8Detector:
         boxes = detection['boxes'][0]
         delete_idx = []
         cls_prob = detection['cls_prob'][0]
+        raws = detection['raw'][0]
 
         for i in range(len(boxes)):
 
@@ -257,6 +263,7 @@ class ProbYolov8Detector:
 
 
         vBox = np.delete(boxes, delete_idx, axis=0)
+        vRaw = np.delete(raws, delete_idx, axis=0)
         vProb = np.delete(cls_prob, delete_idx, axis = 0)
 
 
@@ -295,7 +302,8 @@ class ProbYolov8Detector:
 
         ret = {"boxes":vBox,
                "cls_prob":vProb,
-               "cls_ids":cls_ids}
+               "cls_ids":cls_ids,
+               "raw_logits":vRaw}
         
         #print(ret)
 

@@ -157,6 +157,8 @@ class DistributionNMS(keras.layers.Layer):
 
 
         #tf.print(tf.reduce_max(class_prediction, axis=2))
+
+        raw_logits = class_prediction
         
         if self.from_logits:
             class_prediction:tf.Tensor = ops.softmax(class_prediction)
@@ -173,6 +175,7 @@ class DistributionNMS(keras.layers.Layer):
 
             box = x[0]
             cls_pred = x[1]
+            raws = x[2]
 
             #determines indices to keep
             idx = tf.image.non_max_suppression(
@@ -187,20 +190,22 @@ class DistributionNMS(keras.layers.Layer):
             #only keeps indices in idx
             nms_box = tf.gather(box, idx)
             nms_cls = tf.gather(cls_pred, idx)
+            raw_ret = tf.gather(raws, idx)
 
 
             #cls_distrib = self.distrib_fn(logits=nms_cls)
 
-            return nms_box, nms_cls
+            return nms_box, nms_cls, raw_ret
 
 
-        nms_box, nms_cls = tf.map_fn(nms, (box_prediction, class_prediction), dtype=(tf.float32, tf.float32), 
-            fn_output_signature=(tf.float32, tf.float32))
+        nms_box, nms_cls, nms_raw = tf.map_fn(nms, (box_prediction, class_prediction, raw_logits), dtype=(tf.float32, tf.float32, tf.float32), 
+            fn_output_signature=(tf.float32, tf.float32, tf.float32))
         
 
         output = {
             "boxes": nms_box,
             "cls_prob": nms_cls,
+            "raw": nms_raw
         }
 
 
@@ -260,13 +265,13 @@ class PreSoftSumNMS(keras.layers.Layer):
         #from [-inf, inf] to [0, 1] with the sum adding up to 1
 
 
+
         def subtract_min(x):
             cls_pred = x
             my_min = tf.reduce_min(cls_pred)
             cls_pred = tf.add(cls_pred, -my_min)
 
-            return result
-
+            return cls_pred
 
 
         def nms(x):
