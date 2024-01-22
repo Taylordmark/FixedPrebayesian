@@ -17,15 +17,16 @@ import matplotlib.pyplot as plt
 import pickle
 
 
-checkpoint_path = 'mean_squared_error'
-min_confidence = 0.1
+checkpoint_path = 'Basic_MSE'
+min_confidence = 0.2
 min_iou = .3
-cls_path = 'custom-cls.txt'
+cls_path = 'class_list_traffic.txt'
 download_path = 'download_list.txt'
 save_path = 'train'
 json_path = r'C:\Users\nloftus\Documents\Datasets\coco_2017_annotations\instances_train2017.json'
 
 
+<<<<<<< HEAD
 checkpoint_path = r"C:\Users\keela\Documents\Models\LastMinuteRuns\Small_MLE"
 min_confidence = 0.13
 min_iou = .2
@@ -33,6 +34,15 @@ cls_path = r"C:\Users\keela\Documents\Prebayesian\class_list_traffic.txt"
 download_path = r"C:\Users\keela\Documents\Prebayesian\download_list_traffic_even.txt"
 save_path = r"C:\Users\keela\Documents\train"
 json_path = r"C:\Users\keela\Documents\annotations\instances_train2017.json"
+=======
+# checkpoint_path = r"C:\Users\keela\Documents\Models\Basic_CCE"
+# min_confidence = 0.1
+# min_iou = .3
+# cls_path = r"C:\Users\keela\Documents\Prebayesian\class_list_traffic.txt"
+# download_path = r"C:\Users\keela\Documents\Prebayesian\download_list_traffic_small.txt"
+# save_path = r"C:\Users\keela\Documents\train"
+# json_path = r"C:\Users\keela\Documents\annotations\instances_train2017.json"
+>>>>>>> 111b4bf54fa77559b44ec78e962b1ca9be23b00e
 
 
 
@@ -53,7 +63,7 @@ coco_ds = CocoDSManager(json_path, save_path, download=True,
                         yxyw_percent=False, cls_list=cls_list, download_list=download_list)
 
 nms_fn = DistributionNMS 
-detector = ProbYolov8Detector(num_classes, min_confidence=min_confidence, nms_fn=nms_fn, min_prob_diff=0.01, backbone_name="yolo_v8_s_backbone_coco")
+detector = ProbYolov8Detector(num_classes, min_confidence=min_confidence, nms_fn=nms_fn, min_prob_diff=0.01, backbone_name="yolo_v8_l_backbone_coco")
 
 detector.load_weights(checkpoint_path)
 
